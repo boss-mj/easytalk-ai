@@ -28,10 +28,8 @@ export default function DashboardPage() {
           <div className="col-span-2">
             <conversationchart />
           </div>
-
           <messengercard />
         </div>
-
         {/* Bottom Section */}
         <div className="grid grid-cols-2 gap-6 text-black">
           <recentconversation />
