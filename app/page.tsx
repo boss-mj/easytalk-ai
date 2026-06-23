@@ -1,70 +1,222 @@
-import Image from "next/image";
+"use client";
+
+import { useEffect, useState } from "react";
 
 export default function Home() {
+  const [verifyToken, setVerifyToken] = useState("my_webhook_secret_123");
+  const [challenge, setChallenge] = useState("hello123");
+  const [getResult, setGetResult] = useState("");
+  const [postResult, setPostResult] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  const [webhookUrl, setWebhookUrl] = useState("/api/webhook");
+
+  useEffect(() => {
+    setWebhookUrl(`${window.location.origin}/api/webhook`);
+  }, []);
+
+  async function testGetWebhook() {
+    alert("GET button clicked");
+    console.log("GET button clicked");
+
+    setLoading(true);
+    setGetResult("");
+
+    try {
+      const url = `/api/webhook?hub.mode=subscribe&hub.verify_token=${encodeURIComponent(
+        verifyToken
+      )}&hub.challenge=${encodeURIComponent(challenge)}`;
+
+      const response = await fetch(url);
+      const text = await response.text();
+
+      setGetResult(
+        JSON.stringify(
+          {
+            status: response.status,
+            ok: response.ok,
+            response: text,
+            testedUrl: url,
+          },
+          null,
+          2
+        )
+      );
+    } catch (error) {
+      setGetResult(String(error));
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function testPostWebhook() {
+    alert("POST button clicked");
+    console.log("POST button clicked");
+
+    setLoading(true);
+    setPostResult("");
+
+    const dummyPayload = {
+      object: "page",
+      entry: [
+        {
+          id: "PAGE_TEST_ID",
+          time: Date.now(),
+          messaging: [
+            {
+              sender: {
+                id: "CUSTOMER_TEST_ID",
+              },
+              recipient: {
+                id: "PAGE_TEST_ID",
+              },
+              timestamp: Date.now(),
+              message: {
+                mid: "mid.test123",
+                text: "Hello dummy message",
+              },
+            },
+          ],
+        },
+      ],
+    };
+
+    try {
+      const response = await fetch("/api/webhook", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(dummyPayload),
+      });
+
+      const text = await response.text();
+
+      setPostResult(
+        JSON.stringify(
+          {
+            status: response.status,
+            ok: response.ok,
+            response: text,
+            sentPayload: dummyPayload,
+          },
+          null,
+          2
+        )
+      );
+    } catch (error) {
+      setPostResult(String(error));
+    } finally {
+      setLoading(false);
+    }
+  }
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-zinc-950 min-h-screen">
-      <main className="flex flex-1 w-full max-w-3xl flex-col justify-between py-20 px-8 bg-white dark:bg-zinc-900 sm:rounded-2xl sm:shadow-sm sm:my-12">
-        
-        {/* Header Section */}
-        <div className="flex flex-col gap-4 sm:items-start">
-          <div className="flex items-center gap-3">
-            <span className="text-3xl">👋</span>
-            <h1 className="text-3xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50">
-              Welcome to the team!
-            </h1>
-          </div>
-          <p className="max-w-xl text-lg leading-7 text-zinc-600 dark:text-zinc-400">
-            We are thrilled to have you here. This is your local development environment. 
-            Let's get your workspace configured so you can start building.
+    <main className="min-h-screen bg-slate-950 p-6 text-slate-100">
+      <div className="mx-auto max-w-4xl space-y-6">
+        <div>
+          <h1 className="text-3xl font-bold">EasyTalk AI Webhook Debugger</h1>
+          <p className="mt-2 text-slate-400">
+            Use this page to test your Messenger webhook locally.
           </p>
         </div>
 
-        <hr className="my-8 border-zinc-200 dark:border-zinc-800" />
+        <section className="rounded-xl border border-slate-800 bg-slate-900 p-5">
+          <h2 className="text-xl font-semibold">Current Webhook URL</h2>
+          <p className="mt-2 break-all rounded bg-slate-950 p-3 text-sm text-green-400">
+            {webhookUrl}
+          </p>
 
-        {/* Quick Start Checklist */}
-        <div className="flex flex-col gap-4 w-full">
-          <h2 className="text-lg font-semibold text-zinc-900 dark:text-zinc-50">
-            🚀 Quick Start Checklist
-          </h2>
-          <ul className="space-y-3 text-zinc-600 dark:text-zinc-400">
-            <li className="flex items-start gap-3">
-              <input type="checkbox" className="mt-1 rounded border-zinc-300 text-black focus:ring-black" />
-              <span>Copy <code className="px-1.5 py-0.5 bg-zinc-100 dark:bg-zinc-800 rounded font-mono text-sm">.env.example</code> to <code className="px-1.5 py-0.5 bg-zinc-100 dark:bg-zinc-800 rounded font-mono text-sm">.env.local</code> and fill in secrets.</span>
-            </li>
-            <li className="flex items-start gap-3">
-              <input type="checkbox" className="mt-1 rounded border-zinc-300 text-black focus:ring-black" />
-              <span>Read the internal <code className="px-1.5 py-0.5 bg-zinc-100 dark:bg-zinc-800 rounded font-mono text-sm">README.md</code> for architecture guidelines.</span>
-            </li>
-            <li className="flex items-start gap-3">
-              <input type="checkbox" className="mt-1 rounded border-zinc-300 text-black focus:ring-black" />
-              <span>To start customizing this dashboard, edit <code className="px-1.5 py-0.5 bg-zinc-100 dark:bg-zinc-800 rounded font-mono text-sm">app/page.tsx</code>.</span>
-            </li>
-          </ul>
-        </div>
+          <p className="mt-3 text-sm text-slate-400">
+            For Meta callback URL, use your ngrok version:
+          </p>
 
-        <hr className="my-8 border-zinc-200 dark:border-zinc-800" />
+          <p className="mt-2 break-all rounded bg-slate-950 p-3 text-sm text-yellow-400">
+            https://rephrase-poach-recoup.ngrok-free.dev/api/webhook
+          </p>
+        </section>
 
-        {/* Team Resource Links */}
-        <div className="flex flex-col gap-4 sm:flex-row w-full sm:justify-start">
-          <a
-            className="flex h-11 items-center justify-center rounded-lg bg-zinc-900 px-5 text-sm font-medium text-white transition-colors hover:bg-zinc-800 dark:bg-zinc-50 dark:text-zinc-900 dark:hover:bg-zinc-200"
-            href="https://github.com" // Swap with your repo / wiki link
-            target="_blank"
-            rel="noopener noreferrer"
+        <section className="rounded-xl border border-slate-800 bg-slate-900 p-5">
+          <h2 className="text-xl font-semibold">1. Test GET Webhook Verification</h2>
+
+          <div className="mt-4 grid gap-4 md:grid-cols-2">
+            <div>
+              <label className="text-sm text-slate-400">Verify Token</label>
+              <input
+                value={verifyToken}
+                onChange={(e) => setVerifyToken(e.target.value)}
+                className="mt-1 w-full rounded border border-slate-700 bg-slate-950 p-3 text-slate-100"
+              />
+            </div>
+
+            <div>
+              <label className="text-sm text-slate-400">Challenge</label>
+              <input
+                value={challenge}
+                onChange={(e) => setChallenge(e.target.value)}
+                className="mt-1 w-full rounded border border-slate-700 bg-slate-950 p-3 text-slate-100"
+              />
+            </div>
+          </div>
+
+          <button
+            onClick={testGetWebhook}
+            disabled={loading}
+            className="mt-4 rounded bg-blue-600 px-4 py-2 font-medium hover:bg-blue-700 disabled:opacity-50"
           >
-            Team Wiki / Docs
-          </a>
-          <a
-            className="flex h-11 items-center justify-center rounded-lg border border-zinc-200 px-5 text-sm font-medium text-zinc-900 transition-colors hover:bg-zinc-50 dark:border-zinc-800 dark:text-zinc-50 dark:hover:bg-zinc-800"
-            href="https://slack.com" // Swap with your Slack / Discord invite link
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Join Slack Channel
-          </a>
-        </div>
+            Test GET /api/webhook
+          </button>
 
-      </main>
-    </div>
+          {getResult && (
+            <pre className="mt-4 overflow-auto rounded bg-black p-4 text-sm text-green-400">
+              {getResult}
+            </pre>
+          )}
+        </section>
+
+        <section className="rounded-xl border border-slate-800 bg-slate-900 p-5">
+          <h2 className="text-xl font-semibold">2. Test POST Dummy Message</h2>
+
+          <p className="mt-2 text-sm text-slate-400">
+            This sends a fake Messenger payload to your webhook. It does not send
+            a real Facebook message.
+          </p>
+
+          <button
+            onClick={testPostWebhook}
+            disabled={loading}
+            className="mt-4 rounded bg-emerald-600 px-4 py-2 font-medium hover:bg-emerald-700 disabled:opacity-50"
+          >
+            Test POST /api/webhook
+          </button>
+
+          {postResult && (
+            <pre className="mt-4 overflow-auto rounded bg-black p-4 text-sm text-green-400">
+              {postResult}
+            </pre>
+          )}
+        </section>
+
+        <section className="rounded-xl border border-slate-800 bg-slate-900 p-5">
+          <h2 className="text-xl font-semibold">Expected Results</h2>
+
+          <div className="mt-3 space-y-3 text-sm text-slate-300">
+            <p>
+              <strong>GET success:</strong> status 200 and response should be{" "}
+              <span className="text-green-400">hello123</span>
+            </p>
+
+            <p>
+              <strong>POST success:</strong> status 200 and response should show{" "}
+              <span className="text-green-400">success true</span>
+            </p>
+
+            <p>
+              <strong>Real Messenger message:</strong> check ngrok inspector for{" "}
+              <span className="text-yellow-400">POST /api/webhook</span>
+            </p>
+          </div>
+        </section>
+      </div>
+    </main>
   );
 }
