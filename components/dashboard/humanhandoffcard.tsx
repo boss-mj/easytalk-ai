@@ -16,7 +16,7 @@ export default function HumanHandOffCard() {
     },
     {
       id: 2,
-      customer: "Maria Santos",
+      customer: "Maria Delos Santos",
       issue: "Refund Request",
       assignedTo: "Mark",
       time: "15m ago",
