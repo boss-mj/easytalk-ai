@@ -1,4 +1,4 @@
-import HumanHandOffCard from "@/components/dashboard/humanhandoffcard";
+import HumanHandOffCard from "@/app/components/dashboard/humanhandoffcard";
 export default function HumanHandOffPage() {
   return (
     <div className="p-6">

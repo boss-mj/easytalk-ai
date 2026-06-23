@@ -1,8 +1,8 @@
-import statscard from "@/components/dashboard/statscard";
-import messengercard from "@/components/dashboard/messengercard";
-import conversationchart from "@/components/dashboard/conversationchart";
-import recentconversation from "@/components/dashboard/recentconversation";
-import topfaq from "@/components/dashboard/topfaq";
+import statscard from "@/app/components/dashboard/statscard";
+import messengercard from "@/app/components/dashboard/messengercard";
+import conversationchart from "@/app/components/dashboard/conversationchart";
+import recentconversation from "@/app/components/dashboard/recentconversation";
+import topfaq from "@/app/components/dashboard/topfaq";
 
 export default function DashboardPage() {
   return (
