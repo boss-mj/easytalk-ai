@@ -4,23 +4,21 @@ type StatsCardProps = {
   change?: string;
 };
 
-export default function StatsCard({
-  title,
-  value,
-  change,
-}: StatsCardProps) {
-  return (
-    <div className="bg-white rounded-xl border shadow-sm p-5">
-      <p className="text-sm text-black   font-medium">
-        {title}
-      </p>
+export default function StatsCard({ title, value, change }: StatsCardProps) {
+  const isNegative = change?.startsWith("-");
 
-      <h2 className="text-4xl font-bold zext-black mt-2">
-        {value}
-      </h2>
+  return (
+    <div className="rounded-xl border bg-white p-5 shadow-sm">
+      <p className="text-sm font-medium text-slate-600">{title}</p>
+
+      <h2 className="mt-2 text-4xl font-bold text-black">{value}</h2>
 
       {change && (
-        <p className="text-sm text-green-500 mt-2">
+        <p
+          className={`mt-2 text-sm font-medium ${
+            isNegative ? "text-red-500" : "text-green-500"
+          }`}
+        >
           {change}
         </p>
       )}
