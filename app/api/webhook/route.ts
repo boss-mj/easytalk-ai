@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase/admin";
-import { generateAIReply } from "@/lib/openai/generate-ai-reply";
+import { generateAIReply } from "@/lib/ai/generate-ai-reply";
+import { searchKnowledge } from "@/lib/knowledge/search-knowledge";
 
 const VERIFY_TOKEN = process.env.META_VERIFY_TOKEN || "my_webhook_secret_123";
 
@@ -13,37 +14,80 @@ async function sendMessengerMessage(
 
   if (!token) {
     console.error("Missing Page Access Token");
-    return;
+    return null;
   }
 
-  const response = await fetch(
-    `https://graph.facebook.com/v20.0/me/messages?access_token=${token}`,
-    {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        recipient: {
-          id: senderId,
+  try {
+    const response = await fetch(
+      `https://graph.facebook.com/v20.0/me/messages?access_token=${token}`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
         },
-        message: {
-          text,
-        },
-      }),
+        body: JSON.stringify({
+          recipient: {
+            id: senderId,
+          },
+          message: {
+            text,
+          },
+        }),
+      }
+    );
+
+    const data = await response.json();
+
+    console.log("Messenger Send API response:");
+    console.log(JSON.stringify(data, null, 2));
+
+    if (!response.ok) {
+      console.error("Failed to send Messenger message:", data);
     }
-  );
 
-  const data = await response.json();
+    return data;
+  } catch (error) {
+    console.error("Messenger Send API error:", error);
+    return null;
+  }
+}
 
-  console.log("Messenger Send API response:");
-  console.log(JSON.stringify(data, null, 2));
+async function fetchMessengerProfile(
+  senderId: string,
+  pageAccessToken?: string | null
+) {
+  const token = process.env.META_PAGE_ACCESS_TOKEN || pageAccessToken;
 
-  if (!response.ok) {
-    console.error("Failed to send Messenger message:", data);
+  if (!token) {
+    console.error("Missing Page Access Token for profile lookup");
+    return null;
   }
 
-  return data;
+  try {
+    const response = await fetch(
+      `https://graph.facebook.com/v20.0/${senderId}?fields=first_name,last_name,profile_pic&access_token=${token}`
+    );
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      console.error("Failed to fetch Messenger profile:", data);
+      return null;
+    }
+
+    const fullName = [data.first_name, data.last_name]
+      .filter(Boolean)
+      .join(" ")
+      .trim();
+
+    return {
+      name: fullName || null,
+      profile_pic: data.profile_pic || null,
+    };
+  } catch (error) {
+    console.error("Messenger profile lookup error:", error);
+    return null;
+  }
 }
 
 export async function GET(req: NextRequest) {
@@ -132,6 +176,7 @@ export async function POST(req: NextRequest) {
         .from("faqs")
         .select("*")
         .eq("business_id", business.id)
+        .eq("is_active", true)
         .order("created_at", { ascending: true });
 
       if (faqsError) {
@@ -156,23 +201,53 @@ export async function POST(req: NextRequest) {
         console.log("Real sender ID:", senderId);
         console.log("Real message:", messageText);
 
+        const customerProfile = await fetchMessengerProfile(
+          senderId,
+          business.page_access_token
+        );
+
+        console.log("Customer profile:", customerProfile);
+
         const now = new Date().toISOString();
 
-        const { data: conversation, error: conversationError } =
+        const { data: existingConversation, error: existingConversationError } =
           await supabaseAdmin
             .from("conversations")
-            .upsert(
-              {
-                business_id: business.id,
-                customer_psid: senderId,
-                status: "open",
-                last_message: messageText,
-                last_message_at: now,
-              },
-              {
-                onConflict: "business_id,customer_psid",
-              }
-            )
+            .select("*")
+            .eq("business_id", business.id)
+            .eq("customer_psid", senderId)
+            .maybeSingle();
+
+        if (existingConversationError) {
+          console.error("Existing conversation lookup error:", existingConversationError);
+          continue;
+        }
+
+        const shouldStayNeedsHuman = existingConversation?.status === "needs_human";
+
+        const conversationPayload = {
+          business_id: business.id,
+          customer_psid: senderId,
+          status: shouldStayNeedsHuman ? "needs_human" : "open",
+          last_message: messageText,
+          last_message_at: now,
+          ...(customerProfile?.name ? { customer_name: customerProfile.name } : {}),
+          ...(customerProfile?.profile_pic
+            ? { customer_profile_pic: customerProfile.profile_pic }
+            : {}),
+        };
+
+        const { data: conversation, error: conversationError } = existingConversation
+          ? await supabaseAdmin
+            .from("conversations")
+            .update(conversationPayload)
+            .eq("id", existingConversation.id)
+            .eq("business_id", business.id)
+            .select("*")
+            .single()
+          : await supabaseAdmin
+            .from("conversations")
+            .insert(conversationPayload)
             .select("*")
             .single();
 
@@ -192,13 +267,33 @@ export async function POST(req: NextRequest) {
             raw_payload: event,
           });
 
-        if (customerMessageError) {
-          console.error("Customer message save error:", customerMessageError);
+        if (conversation.status === "needs_human") {
+          console.log(
+            "Conversation is marked as needs_human. Skipping AI auto-reply."
+          );
+          continue;
+        }
+
+        let knowledgeMatches: Awaited<ReturnType<typeof searchKnowledge>> = [];
+
+        try {
+          knowledgeMatches =
+            aiSettings?.use_knowledge_base === false
+              ? []
+              : await searchKnowledge({
+                businessId: business.id,
+                query: messageText,
+                limit: 5,
+              });
+
+          console.log("Knowledge matches found:", knowledgeMatches.length);
+        } catch (error) {
+          console.error("Knowledge search error:", error);
         }
 
         let replyText =
           aiSettings?.fallback_message ||
-          "I am not sure about that yet. A team member will assist you shortly.";
+          "I'm not sure about that yet. A team member will assist you shortly.";
 
         try {
           replyText = await generateAIReply({
@@ -207,12 +302,17 @@ export async function POST(req: NextRequest) {
             aiSettings,
             products: products || [],
             faqs: faqs || [],
+            knowledgeMatches,
           });
-        } catch (aiError) {
-          console.error("AI reply generation error:", aiError);
+        } catch (error) {
+          console.error("AI reply generation error:", error);
         }
 
-        await sendMessengerMessage(senderId, replyText);
+        await sendMessengerMessage(
+          senderId,
+          replyText,
+          business.page_access_token
+        );
 
         const { error: botMessageError } = await supabaseAdmin
           .from("messages")
@@ -220,22 +320,34 @@ export async function POST(req: NextRequest) {
             business_id: business.id,
             conversation_id: conversation.id,
             sender_type: "ai",
-            sender_id: "bot",
+            sender_id: "easytalk-ai",
             message_text: replyText,
-            raw_payload: null,
+            raw_payload: {
+              knowledge_matches_found: knowledgeMatches.length,
+              knowledge_matches: knowledgeMatches.map((match) => ({
+                id: match.id,
+                document_id: match.document_id,
+                file_name: match.file_name,
+                similarity: match.similarity,
+              })),
+            },
           });
 
         if (botMessageError) {
           console.error("Bot message save error:", botMessageError);
         }
 
-        await supabaseAdmin
+        const { error: updateConversationError } = await supabaseAdmin
           .from("conversations")
           .update({
             last_message: replyText,
             last_message_at: new Date().toISOString(),
           })
           .eq("id", conversation.id);
+
+        if (updateConversationError) {
+          console.error("Conversation update error:", updateConversationError);
+        }
       }
     }
 

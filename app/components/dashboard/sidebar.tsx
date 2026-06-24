@@ -9,7 +9,9 @@ import {
   Package,
   MessageCircle,
   Settings,
-  Bot
+  Bot,
+  FileText,
+  Sparkles
 } from "lucide-react";
 
 import Link from "next/link";
@@ -45,7 +47,7 @@ export default function Sidebar() {
         <SectionTitle title="CONVERSATIONS" />
 
         <SidebarItem
-          href="/dashboard/inbox"
+          href="/dashboard/conversations"
           icon={<MessageSquare size={18} />}
           text="Conversations"
           active={isActive("/dashboard/conversations")}
@@ -58,6 +60,20 @@ export default function Sidebar() {
           icon={<Bot size={18} />}
           text="AI Settings"
           active={isActive("/dashboard/ai-settings")}
+        />
+
+        <SidebarItem
+          href="/dashboard/knowledge-base"
+          icon={<FileText size={18} />}
+          text="Knowledge Base"
+          active={isActive("/dashboard/knowledge-base")}
+        />
+
+        <SidebarItem
+          href="/dashboard/ai-tester"
+          icon={<Sparkles size={18} />}
+          text="AI Tester"
+          active={isActive("/dashboard/ai-tester")}
         />
 
         <SidebarItem
@@ -120,8 +136,8 @@ function SidebarItem({
     <Link
       href={href}
       className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 ${active
-          ? "bg-green-500 text-white shadow-lg"
-          : "text-slate-300 hover:bg-slate-800 hover:text-white"
+        ? "bg-green-500 text-white shadow-lg"
+        : "text-slate-300 hover:bg-slate-800 hover:text-white"
         }`}
     >
       {icon}

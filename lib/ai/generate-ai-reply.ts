@@ -1,4 +1,5 @@
 import { getOpenAIClient } from "@/lib/openai/client";
+import type { KnowledgeMatch } from "@/lib/knowledge/search-knowledge";
 
 type GenerateAIReplyParams = {
   customerMessage: string;
@@ -6,6 +7,7 @@ type GenerateAIReplyParams = {
   aiSettings: any;
   products: any[];
   faqs: any[];
+  knowledgeMatches?: KnowledgeMatch[];
 };
 
 export async function generateAIReply({
@@ -14,17 +16,21 @@ export async function generateAIReply({
   aiSettings,
   products,
   faqs,
+  knowledgeMatches = [],
 }: GenerateAIReplyParams) {
   const openai = getOpenAIClient();
-
-  const model = process.env.OPENAI_MODEL || "gpt-5.4-mini";
+  const model = process.env.OPENAI_MODEL || "gpt-4.1-mini";
 
   const productText =
     products.length > 0
       ? products
           .map(
             (product) =>
-              `- ${product.name}: ${product.description || "No description"} | Price: ${product.price || "N/A"} ${product.currency || "PHP"} | Available: ${product.is_available ? "Yes" : "No"}`
+              `- ${product.name}: ${
+                product.description || "No description"
+              } | Price: ${product.price || "N/A"} ${
+                product.currency || "PHP"
+              } | Available: ${product.is_available ? "Yes" : "No"}`
           )
           .join("\n")
       : "No products added yet.";
@@ -35,6 +41,20 @@ export async function generateAIReply({
           .map((faq) => `Q: ${faq.question}\nA: ${faq.answer}`)
           .join("\n\n")
       : "No FAQs added yet.";
+
+  const knowledgeText =
+    knowledgeMatches.length > 0
+      ? knowledgeMatches
+          .map(
+            (match, index) =>
+              `Document Match ${index + 1}
+File: ${match.file_name || "Uploaded document"}
+Similarity: ${Math.round(match.similarity * 100)}%
+Content:
+${match.content}`
+          )
+          .join("\n\n---\n\n")
+      : "No matching uploaded document content found.";
 
   const systemPrompt =
     aiSettings?.system_prompt ||
@@ -51,9 +71,10 @@ ${systemPrompt}
 Rules:
 - Reply in a ${aiSettings?.tone || "friendly"} tone.
 - Keep the reply ${aiSettings?.max_reply_length || "short"}.
-- Use only the business data, products, and FAQs provided.
+- Use the business profile, products, FAQs, and uploaded document matches provided.
+- Prioritize uploaded document matches when they directly answer the customer.
 - Do not invent prices, products, schedules, or policies.
-- If you do not know the answer, say: "${aiSettings?.fallback_message}"
+- If the answer is not in the provided data, say: "${aiSettings?.fallback_message}"
         `,
       },
       {
@@ -65,6 +86,7 @@ Description: ${business?.description}
 Address: ${business?.address}
 Contact Number: ${business?.contact_number}
 Opening Hours: ${business?.opening_hours}
+Closing Hours: ${business?.closing_hours}
 Delivery Info: ${business?.delivery_info}
 Payment Methods: ${business?.payment_methods}
 
@@ -73,6 +95,9 @@ ${productText}
 
 FAQs:
 ${faqText}
+
+Uploaded Document Matches:
+${knowledgeText}
 
 Customer Message:
 ${customerMessage}
