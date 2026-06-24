@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase/admin";
+import { generateAIReply } from "@/lib/openai/generate-ai-reply";
 
 const VERIFY_TOKEN = process.env.META_VERIFY_TOKEN || "my_webhook_secret_123";
 
@@ -9,6 +10,7 @@ async function sendMessengerMessage(
   pageAccessToken?: string | null
 ) {
   const token = process.env.META_PAGE_ACCESS_TOKEN || pageAccessToken;
+
   if (!token) {
     console.error("Missing Page Access Token");
     return;
@@ -115,6 +117,27 @@ export async function POST(req: NextRequest) {
         continue;
       }
 
+      const { data: products, error: productsError } = await supabaseAdmin
+        .from("products")
+        .select("*")
+        .eq("business_id", business.id)
+        .eq("is_available", true)
+        .order("created_at", { ascending: true });
+
+      if (productsError) {
+        console.error("Products lookup error:", productsError);
+      }
+
+      const { data: faqs, error: faqsError } = await supabaseAdmin
+        .from("faqs")
+        .select("*")
+        .eq("business_id", business.id)
+        .order("created_at", { ascending: true });
+
+      if (faqsError) {
+        console.error("FAQs lookup error:", faqsError);
+      }
+
       for (const event of entry.messaging || []) {
         const senderId = event.sender?.id;
         const messageText = event.message?.text;
@@ -173,12 +196,21 @@ export async function POST(req: NextRequest) {
           console.error("Customer message save error:", customerMessageError);
         }
 
-        const botName = aiSettings?.bot_name || "EasyBot";
-        const welcomeMessage =
-          aiSettings?.welcome_message ||
-          "Hello! How can I help you today?";
+        let replyText =
+          aiSettings?.fallback_message ||
+          "I am not sure about that yet. A team member will assist you shortly.";
 
-        const replyText = `${botName}: ${welcomeMessage}`;
+        try {
+          replyText = await generateAIReply({
+            customerMessage: messageText,
+            business,
+            aiSettings,
+            products: products || [],
+            faqs: faqs || [],
+          });
+        } catch (aiError) {
+          console.error("AI reply generation error:", aiError);
+        }
 
         await sendMessengerMessage(senderId, replyText);
 

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { generateAIReply } from "@/lib/openai/generate-reply";
+import { generateAIReply } from "@/lib/openai/generate-ai-reply";
 import { sendMessengerMessage } from "@/lib/meta/messenger";
 
 export function verifyMessengerWebhook(req: NextRequest) {

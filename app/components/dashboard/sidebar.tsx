@@ -45,7 +45,7 @@ export default function Sidebar() {
         <SectionTitle title="CONVERSATIONS" />
 
         <SidebarItem
-          href="/dashboard/conversations"
+          href="/dashboard/inbox"
           icon={<MessageSquare size={18} />}
           text="Conversations"
           active={isActive("/dashboard/conversations")}
