@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase/admin";
+import { generateAIReply } from "@/lib/ai/generate-ai-reply";
+import { searchKnowledge } from "@/lib/knowledge/search-knowledge";
 
 const VERIFY_TOKEN = process.env.META_VERIFY_TOKEN || "my_webhook_secret_123";
 
@@ -9,39 +11,128 @@ async function sendMessengerMessage(
   pageAccessToken?: string | null
 ) {
   const token = process.env.META_PAGE_ACCESS_TOKEN || pageAccessToken;
+
   if (!token) {
     console.error("Missing Page Access Token");
-    return;
+    return null;
   }
 
-  const response = await fetch(
-    `https://graph.facebook.com/v20.0/me/messages?access_token=${token}`,
-    {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        recipient: {
-          id: senderId,
+  try {
+    const response = await fetch(
+      `https://graph.facebook.com/v20.0/me/messages?access_token=${token}`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
         },
-        message: {
-          text,
-        },
-      }),
+        body: JSON.stringify({
+          recipient: {
+            id: senderId,
+          },
+          message: {
+            text,
+          },
+        }),
+      }
+    );
+
+    const data = await response.json();
+
+    console.log("Messenger Send API response:");
+    console.log(JSON.stringify(data, null, 2));
+
+    if (!response.ok) {
+      console.error("Failed to send Messenger message:", data);
     }
-  );
 
-  const data = await response.json();
+    return data;
+  } catch (error) {
+    console.error("Messenger Send API error:", error);
+    return null;
+  }
+}
+function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
 
-  console.log("Messenger Send API response:");
-  console.log(JSON.stringify(data, null, 2));
+async function sendMessengerSenderAction(
+  senderId: string,
+  action: "typing_on" | "typing_off",
+  pageAccessToken?: string | null
+) {
+  const token = process.env.META_PAGE_ACCESS_TOKEN || pageAccessToken;
 
-  if (!response.ok) {
-    console.error("Failed to send Messenger message:", data);
+  if (!token) {
+    console.error("Missing Page Access Token for sender action");
+    return null;
   }
 
-  return data;
+  try {
+    const response = await fetch(
+      `https://graph.facebook.com/v20.0/me/messages?access_token=${token}`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          recipient: {
+            id: senderId,
+          },
+          sender_action: action,
+        }),
+      }
+    );
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      console.error("Messenger sender action error:", data);
+    }
+
+    return data;
+  } catch (error) {
+    console.error("Messenger sender action request error:", error);
+    return null;
+  }
+}
+
+async function fetchMessengerProfile(
+  senderId: string,
+  pageAccessToken?: string | null
+) {
+  const token = process.env.META_PAGE_ACCESS_TOKEN || pageAccessToken;
+
+  if (!token) {
+    console.error("Missing Page Access Token for profile lookup");
+    return null;
+  }
+
+  try {
+    const response = await fetch(
+      `https://graph.facebook.com/v20.0/${senderId}?fields=first_name,last_name,profile_pic&access_token=${token}`
+    );
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      console.error("Failed to fetch Messenger profile:", data);
+      return null;
+    }
+
+    const fullName = [data.first_name, data.last_name]
+      .filter(Boolean)
+      .join(" ")
+      .trim();
+
+    return {
+      name: fullName || null,
+      profile_pic: data.profile_pic || null,
+    };
+  } catch (error) {
+    console.error("Messenger profile lookup error:", error);
+    return null;
+  }
 }
 
 export async function GET(req: NextRequest) {
@@ -115,6 +206,28 @@ export async function POST(req: NextRequest) {
         continue;
       }
 
+      const { data: products, error: productsError } = await supabaseAdmin
+        .from("products")
+        .select("*")
+        .eq("business_id", business.id)
+        .eq("is_available", true)
+        .order("created_at", { ascending: true });
+
+      if (productsError) {
+        console.error("Products lookup error:", productsError);
+      }
+
+      const { data: faqs, error: faqsError } = await supabaseAdmin
+        .from("faqs")
+        .select("*")
+        .eq("business_id", business.id)
+        .eq("is_active", true)
+        .order("created_at", { ascending: true });
+
+      if (faqsError) {
+        console.error("FAQs lookup error:", faqsError);
+      }
+
       for (const event of entry.messaging || []) {
         const senderId = event.sender?.id;
         const messageText = event.message?.text;
@@ -133,23 +246,53 @@ export async function POST(req: NextRequest) {
         console.log("Real sender ID:", senderId);
         console.log("Real message:", messageText);
 
+        const customerProfile = await fetchMessengerProfile(
+          senderId,
+          business.page_access_token
+        );
+
+        console.log("Customer profile:", customerProfile);
+
         const now = new Date().toISOString();
 
-        const { data: conversation, error: conversationError } =
+        const { data: existingConversation, error: existingConversationError } =
           await supabaseAdmin
             .from("conversations")
-            .upsert(
-              {
-                business_id: business.id,
-                customer_psid: senderId,
-                status: "open",
-                last_message: messageText,
-                last_message_at: now,
-              },
-              {
-                onConflict: "business_id,customer_psid",
-              }
-            )
+            .select("*")
+            .eq("business_id", business.id)
+            .eq("customer_psid", senderId)
+            .maybeSingle();
+
+        if (existingConversationError) {
+          console.error("Existing conversation lookup error:", existingConversationError);
+          continue;
+        }
+
+        const shouldStayNeedsHuman = existingConversation?.status === "needs_human";
+
+        const conversationPayload = {
+          business_id: business.id,
+          customer_psid: senderId,
+          status: shouldStayNeedsHuman ? "needs_human" : "open",
+          last_message: messageText,
+          last_message_at: now,
+          ...(customerProfile?.name ? { customer_name: customerProfile.name } : {}),
+          ...(customerProfile?.profile_pic
+            ? { customer_profile_pic: customerProfile.profile_pic }
+            : {}),
+        };
+
+        const { data: conversation, error: conversationError } = existingConversation
+          ? await supabaseAdmin
+            .from("conversations")
+            .update(conversationPayload)
+            .eq("id", existingConversation.id)
+            .eq("business_id", business.id)
+            .select("*")
+            .single()
+          : await supabaseAdmin
+            .from("conversations")
+            .insert(conversationPayload)
             .select("*")
             .single();
 
@@ -168,19 +311,81 @@ export async function POST(req: NextRequest) {
             message_text: messageText,
             raw_payload: event,
           });
-
-        if (customerMessageError) {
-          console.error("Customer message save error:", customerMessageError);
+        if (
+          aiSettings?.enable_human_handoff !== false &&
+          conversation.status === "needs_human"
+        ) {
+          console.log(
+            "Conversation is marked as needs_human. Skipping AI auto-reply."
+          );
+          continue;
         }
 
-        const botName = aiSettings?.bot_name || "EasyBot";
-        const welcomeMessage =
-          aiSettings?.welcome_message ||
-          "Hello! How can I help you today?";
+        let knowledgeMatches: Awaited<ReturnType<typeof searchKnowledge>> = [];
 
-        const replyText = `${botName}: ${welcomeMessage}`;
+        try {
+          knowledgeMatches =
+            aiSettings?.use_knowledge_base === false
+              ? []
+              : await searchKnowledge({
+                businessId: business.id,
+                query: messageText,
+                limit: 5,
+              });
 
-        await sendMessengerMessage(senderId, replyText);
+          console.log("Knowledge matches found:", knowledgeMatches.length);
+        } catch (error) {
+          console.error("Knowledge search error:", error);
+        }
+
+        let replyText =
+          aiSettings?.fallback_message ||
+          "I'm not sure about that yet. A team member will assist you shortly.";
+
+        try {
+          replyText = await generateAIReply({
+            customerMessage: messageText,
+            business,
+            aiSettings,
+            products: products || [],
+            faqs: faqs || [],
+            knowledgeMatches,
+          });
+        } catch (error) {
+          console.error("AI reply generation error:", error);
+        }
+
+        const responseDelaySeconds =
+          typeof aiSettings?.response_delay_seconds === "number"
+            ? Math.max(0, Math.min(60, aiSettings.response_delay_seconds))
+            : 0;
+
+        if (aiSettings?.typing_indicator !== false) {
+          await sendMessengerSenderAction(
+            senderId,
+            "typing_on",
+            business.page_access_token
+          );
+        }
+
+        if (responseDelaySeconds > 0) {
+          console.log(`Waiting ${responseDelaySeconds} second(s) before reply...`);
+          await sleep(responseDelaySeconds * 1000);
+        }
+
+        await sendMessengerMessage(
+          senderId,
+          replyText,
+          business.page_access_token
+        );
+
+        if (aiSettings?.typing_indicator !== false) {
+          await sendMessengerSenderAction(
+            senderId,
+            "typing_off",
+            business.page_access_token
+          );
+        }
 
         const { error: botMessageError } = await supabaseAdmin
           .from("messages")
@@ -188,22 +393,34 @@ export async function POST(req: NextRequest) {
             business_id: business.id,
             conversation_id: conversation.id,
             sender_type: "ai",
-            sender_id: "bot",
+            sender_id: "easytalk-ai",
             message_text: replyText,
-            raw_payload: null,
+            raw_payload: {
+              knowledge_matches_found: knowledgeMatches.length,
+              knowledge_matches: knowledgeMatches.map((match) => ({
+                id: match.id,
+                document_id: match.document_id,
+                file_name: match.file_name,
+                similarity: match.similarity,
+              })),
+            },
           });
 
         if (botMessageError) {
           console.error("Bot message save error:", botMessageError);
         }
 
-        await supabaseAdmin
+        const { error: updateConversationError } = await supabaseAdmin
           .from("conversations")
           .update({
             last_message: replyText,
             last_message_at: new Date().toISOString(),
           })
           .eq("id", conversation.id);
+
+        if (updateConversationError) {
+          console.error("Conversation update error:", updateConversationError);
+        }
       }
     }
 
