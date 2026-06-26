@@ -51,6 +51,51 @@ async function sendMessengerMessage(
     return null;
   }
 }
+function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function sendMessengerSenderAction(
+  senderId: string,
+  action: "typing_on" | "typing_off",
+  pageAccessToken?: string | null
+) {
+  const token = process.env.META_PAGE_ACCESS_TOKEN || pageAccessToken;
+
+  if (!token) {
+    console.error("Missing Page Access Token for sender action");
+    return null;
+  }
+
+  try {
+    const response = await fetch(
+      `https://graph.facebook.com/v20.0/me/messages?access_token=${token}`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          recipient: {
+            id: senderId,
+          },
+          sender_action: action,
+        }),
+      }
+    );
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      console.error("Messenger sender action error:", data);
+    }
+
+    return data;
+  } catch (error) {
+    console.error("Messenger sender action request error:", error);
+    return null;
+  }
+}
 
 async function fetchMessengerProfile(
   senderId: string,
@@ -266,8 +311,10 @@ export async function POST(req: NextRequest) {
             message_text: messageText,
             raw_payload: event,
           });
-
-        if (conversation.status === "needs_human") {
+        if (
+          aiSettings?.enable_human_handoff !== false &&
+          conversation.status === "needs_human"
+        ) {
           console.log(
             "Conversation is marked as needs_human. Skipping AI auto-reply."
           );
@@ -308,11 +355,37 @@ export async function POST(req: NextRequest) {
           console.error("AI reply generation error:", error);
         }
 
+        const responseDelaySeconds =
+          typeof aiSettings?.response_delay_seconds === "number"
+            ? Math.max(0, Math.min(60, aiSettings.response_delay_seconds))
+            : 0;
+
+        if (aiSettings?.typing_indicator !== false) {
+          await sendMessengerSenderAction(
+            senderId,
+            "typing_on",
+            business.page_access_token
+          );
+        }
+
+        if (responseDelaySeconds > 0) {
+          console.log(`Waiting ${responseDelaySeconds} second(s) before reply...`);
+          await sleep(responseDelaySeconds * 1000);
+        }
+
         await sendMessengerMessage(
           senderId,
           replyText,
           business.page_access_token
         );
+
+        if (aiSettings?.typing_indicator !== false) {
+          await sendMessengerSenderAction(
+            senderId,
+            "typing_off",
+            business.page_access_token
+          );
+        }
 
         const { error: botMessageError } = await supabaseAdmin
           .from("messages")
