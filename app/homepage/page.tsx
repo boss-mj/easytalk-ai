@@ -286,7 +286,7 @@ export default function HomePage() {
               </div>
             </div>
 
-            {/* CHAT DEMO */}
+            {/* CHAT */}
             <div className="relative">
               <div className="rounded-[40px] border border-white/50 bg-white/80 p-8 shadow-[0_20px_80px_rgba(99,102,241,0.15)] backdrop-blur-xl">
                 <div className="mb-8 flex items-center justify-between">
@@ -322,7 +322,7 @@ export default function HomePage() {
                 </div>
 
                 <div className="mt-8 rounded-2xl border border-slate-200 px-5 py-4 text-black">
-                  Type a message...
+                  Type a message....
                 </div>
               </div>
             </div>
