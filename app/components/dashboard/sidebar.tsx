@@ -13,6 +13,8 @@ import {
   FileText,
   Sparkles
 } from "lucide-react";
+import { LogOut } from "lucide-react";
+import { useRouter } from "next/navigation";
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -26,6 +28,17 @@ export default function Sidebar() {
     }
 
     return pathname === href || pathname.startsWith(`${href}/`);
+  }
+
+  const router = useRouter();
+
+  async function handleLogout() {
+    await fetch("/api/auth/logout", {
+      method: "POST",
+    });
+
+    router.push("/login");
+    router.refresh();
   }
 
   return (
@@ -117,6 +130,15 @@ export default function Sidebar() {
           active={isActive("/dashboard/settings")}
         />
       </div>
+
+      <button
+        type="button"
+        onClick={handleLogout}
+        className="mt-2 flex w-full items-center gap-3 rounded-lg px-4 py-3 text-slate-300 transition-all duration-200 hover:bg-red-950 hover:text-red-300"
+      >
+        <LogOut size={18} />
+        <span>Logout</span>
+      </button>
     </aside>
   );
 }
