@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { validateProduct } from "@/lib/validators/product";
 import { requireBusiness } from "@/lib/auth/require-business";
+import { requireUser } from "@/lib/auth/require-user";
 
 /**
  * Safe product columns.
@@ -23,6 +24,12 @@ const PRODUCT_COLUMNS = `
 `;
 
 export async function GET() {
+    const { errorResponse } = await requireUser();
+
+  if (errorResponse) {
+    return errorResponse;
+  }
+
   try {
     /**
      * Protect this API route.

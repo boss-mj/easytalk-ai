@@ -3,9 +3,19 @@ import { supabaseAdmin } from "@/lib/supabase/admin";
 import { generateAIReply } from "@/lib/ai/generate-ai-reply";
 import { searchKnowledge } from "@/lib/knowledge/search-knowledge";
 import { requireBusiness } from "@/lib/auth/require-business";
+import { requireUser } from "@/lib/auth/require-user";
 
 export async function POST(req: Request) {
+  const { errorResponse } = await requireUser();
+
+  if (errorResponse) {
+    return errorResponse;
+  }
+
+
   try {
+
+
     /**
      * Protect this API route.
      *
@@ -107,10 +117,10 @@ export async function POST(req: Request) {
       aiSettings?.use_knowledge_base === false
         ? []
         : await searchKnowledge({
-            businessId,
-            query: message,
-            limit: 5,
-          });
+          businessId,
+          query: message,
+          limit: 5,
+        });
 
     /**
      * Generate the AI reply using:

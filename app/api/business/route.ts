@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { validateBusinessProfile } from "@/lib/validators/business";
 import { requireBusiness } from "@/lib/auth/require-business";
+import { requireUser } from "@/lib/auth/require-user";
 
 /**
  * Safe columns only.
@@ -30,6 +31,13 @@ const BUSINESS_SAFE_COLUMNS = `
 `;
 
 export async function GET() {
+
+    const { errorResponse } = await requireUser();
+
+  if (errorResponse) {
+    return errorResponse;
+  }
+
   try {
     /**
      * requireBusiness() does two things:
