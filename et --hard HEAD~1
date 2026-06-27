@@ -1,0 +1,28 @@
+[33mcommit a259108b163054c3ada9981dd5224e256208ba27[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m, [m[1;31morigin/main[m[33m, [m[1;31morigin/HEAD[m[33m)[m
+Author: Jesse Eresmas <eresmas.jesse2@gmail.com>
+Date:   Fri Jun 26 18:10:05 2026 +0800
+
+    homepage added
+
+[1mdiff --git a/app/homepage/page.tsx b/app/homepage/page.tsx[m
+[1mindex b527353..d02e7fa 100644[m
+[1m--- a/app/homepage/page.tsx[m
+[1m+++ b/app/homepage/page.tsx[m
+[36m@@ -286,7 +286,7 @@[m [mexport default function HomePage() {[m
+               </div>[m
+             </div>[m
+ [m
+[31m-            {/* CHAT DEMO */}[m
+[32m+[m[32m            {/* CHAT */}[m
+             <div className="relative">[m
+               <div className="rounded-[40px] border border-white/50 bg-white/80 p-8 shadow-[0_20px_80px_rgba(99,102,241,0.15)] backdrop-blur-xl">[m
+                 <div className="mb-8 flex items-center justify-between">[m
+[36m@@ -322,7 +322,7 @@[m [mexport default function HomePage() {[m
+                 </div>[m
+ [m
+                 <div className="mt-8 rounded-2xl border border-slate-200 px-5 py-4 text-black">[m
+[31m-                  Type a message...[m
+[32m+[m[32m                  Type a message....[m
+                 </div>[m
+               </div>[m
+             </div>[m
