@@ -1,20 +1,26 @@
 type SendMessengerMessageParams = {
   recipientId: string;
   message: string;
-  pageAccessToken?: string;
+  pageAccessToken?: string | null;
 };
 
 export async function sendMessengerMessage({
   recipientId,
   message,
-  pageAccessToken = process.env.META_PAGE_ACCESS_TOKEN,
+  pageAccessToken,
 }: SendMessengerMessageParams) {
-  if (!pageAccessToken) {
-    throw new Error("Missing META_PAGE_ACCESS_TOKEN");
+  /**
+   * Use the business-specific Page Access Token first.
+   * If missing, fallback to .env.local for local testing.
+   */
+  const token = pageAccessToken || process.env.META_PAGE_ACCESS_TOKEN;
+
+  if (!token) {
+    throw new Error("Missing Messenger Page Access Token.");
   }
 
   const response = await fetch(
-    `https://graph.facebook.com/v20.0/me/messages?access_token=${pageAccessToken}`,
+    `https://graph.facebook.com/v20.0/me/messages?access_token=${token}`,
     {
       method: "POST",
       headers: {
@@ -31,11 +37,17 @@ export async function sendMessengerMessage({
     }
   );
 
+  const data = await response.json();
+
   if (!response.ok) {
-    const error = await response.text();
-    console.error("Messenger send error:", error);
-    throw new Error("Failed to send Messenger message");
+    console.error("Messenger Send API error:", data);
+
+    throw new Error(
+      data?.error?.message || "Failed to send Messenger message."
+    );
   }
 
-  return response.json();
+  console.log("Messenger Send API response:", data);
+
+  return data;
 }
