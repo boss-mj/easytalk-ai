@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { validateFAQ } from "@/lib/validators/faq";
 import { requireBusiness } from "@/lib/auth/require-business";
+import { requireUser } from "@/lib/auth/require-user";
 
 /**
  * Columns returned to the frontend.
@@ -21,6 +22,12 @@ const FAQ_COLUMNS = `
 `;
 
 export async function GET() {
+  const { errorResponse } = await requireUser();
+
+  if (errorResponse) {
+    return errorResponse;
+  }
+
   try {
     /**
      * Protect this API route.
@@ -81,6 +88,12 @@ export async function GET() {
 }
 
 export async function POST(req: Request) {
+  const { errorResponse } = await requireUser();
+
+  if (errorResponse) {
+    return errorResponse;
+  }
+
   try {
     /**
      * Same protection for creating FAQs.

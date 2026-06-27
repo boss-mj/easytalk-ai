@@ -1,3 +1,4 @@
+import { requireUser } from "@/lib/auth/require-user";
 import { NextResponse } from "next/server";
 
 export const runtime = "nodejs";
@@ -10,6 +11,12 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
+  const { errorResponse } = await requireUser();
+
+  if (errorResponse) {
+    return errorResponse;
+  }
+
   try {
     const body = await request.json();
 

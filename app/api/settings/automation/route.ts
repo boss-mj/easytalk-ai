@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { requireBusiness } from "@/lib/auth/require-business";
+import { requireUser } from "@/lib/auth/require-user";
 
 /**
  * Settings columns returned to the frontend.
@@ -38,6 +39,12 @@ function cleanText(value: unknown, maxLength: number) {
 }
 
 export async function GET() {
+    const { errorResponse } = await requireUser();
+
+  if (errorResponse) {
+    return errorResponse;
+  }
+
   try {
     /**
      * Protect this API route.
@@ -127,6 +134,12 @@ export async function GET() {
 }
 
 export async function PUT(req: Request) {
+    const { errorResponse } = await requireUser();
+
+  if (errorResponse) {
+    return errorResponse;
+  }
+
   try {
     /**
      * Protect this API route.

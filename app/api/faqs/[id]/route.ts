@@ -39,6 +39,7 @@ function parseFAQId(id: string) {
 }
 
 export async function PUT(
+  
   req: Request,
   context: { params: Promise<{ id: string }> }
 ) {

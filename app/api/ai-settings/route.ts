@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { requireBusiness } from "@/lib/auth/require-business";
+import { requireUser } from "@/lib/auth/require-user";
 
 /**
  * Converts database column names into frontend-friendly names.
@@ -47,6 +48,7 @@ function toClientSettings(row: any) {
  * We do NOT use DEFAULT_BUSINESS_ID anymore for protected dashboard routes.
  */
 function toDatabaseSettings(body: any, businessId: number) {
+
   return {
     business_id: businessId,
 
@@ -77,6 +79,12 @@ function toDatabaseSettings(body: any, businessId: number) {
 }
 
 export async function GET() {
+  const { errorResponse } = await requireUser();
+
+  if (errorResponse) {
+    return errorResponse;
+  }
+
   try {
     /**
      * This checks:
