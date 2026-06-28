@@ -2,11 +2,39 @@ import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { generateAIReply } from "@/lib/ai/generate-ai-reply";
 import { searchKnowledge } from "@/lib/knowledge/search-knowledge";
-
-const BUSINESS_ID = Number(process.env.DEFAULT_BUSINESS_ID || "1");
+import { requireBusiness } from "@/lib/auth/require-business";
+import { requireUser } from "@/lib/auth/require-user";
 
 export async function POST(req: Request) {
+  const { errorResponse } = await requireUser();
+
+  if (errorResponse) {
+    return errorResponse;
+  }
+
+
   try {
+
+
+    /**
+     * Protect this API route.
+     *
+     * This does two things:
+     * 1. Checks if the user is logged in.
+     * 2. Gets the business owned by the logged-in user.
+     *
+     * This replaces:
+     * const BUSINESS_ID = Number(process.env.DEFAULT_BUSINESS_ID || "1");
+     */
+    const { business, errorResponse } = await requireBusiness();
+
+    if (errorResponse) {
+      return errorResponse;
+    }
+
+    /**
+     * Get the test customer message from the frontend.
+     */
     const body = await req.json();
     const message =
       typeof body.message === "string" ? body.message.trim() : "";
@@ -18,30 +46,22 @@ export async function POST(req: Request) {
       );
     }
 
-    const { data: business, error: businessError } = await supabaseAdmin
-      .from("businesses")
-      .select("*")
-      .eq("id", BUSINESS_ID)
-      .maybeSingle();
+    /**
+     * Since requireBusiness() already loaded the business,
+     * we do NOT need to query the businesses table again.
+     *
+     * business.id is the current logged-in user's business ID.
+     */
+    const businessId = business.id;
 
-    if (businessError) {
-      return NextResponse.json(
-        { success: false, error: businessError.message },
-        { status: 500 }
-      );
-    }
-
-    if (!business) {
-      return NextResponse.json(
-        { success: false, error: "Business profile not found." },
-        { status: 404 }
-      );
-    }
-
+    /**
+     * ai_settings is a child table.
+     * So we filter by business_id.
+     */
     const { data: aiSettings, error: settingsError } = await supabaseAdmin
       .from("ai_settings")
       .select("*")
-      .eq("business_id", BUSINESS_ID)
+      .eq("business_id", businessId)
       .maybeSingle();
 
     if (settingsError) {
@@ -51,10 +71,14 @@ export async function POST(req: Request) {
       );
     }
 
+    /**
+     * products is also a child table.
+     * So we filter by business_id.
+     */
     const { data: products, error: productsError } = await supabaseAdmin
       .from("products")
       .select("*")
-      .eq("business_id", BUSINESS_ID)
+      .eq("business_id", businessId)
       .eq("is_available", true)
       .order("created_at", { ascending: true });
 
@@ -65,10 +89,14 @@ export async function POST(req: Request) {
       );
     }
 
+    /**
+     * faqs is also a child table.
+     * So we filter by business_id.
+     */
     const { data: faqs, error: faqsError } = await supabaseAdmin
       .from("faqs")
       .select("*")
-      .eq("business_id", BUSINESS_ID)
+      .eq("business_id", businessId)
       .eq("is_active", true)
       .order("created_at", { ascending: true });
 
@@ -79,15 +107,29 @@ export async function POST(req: Request) {
       );
     }
 
+    /**
+     * Search uploaded knowledge base documents.
+     *
+     * If Knowledge Base Search is disabled in settings,
+     * we return an empty array.
+     */
     const knowledgeMatches =
       aiSettings?.use_knowledge_base === false
         ? []
         : await searchKnowledge({
-            businessId: BUSINESS_ID,
-            query: message,
-            limit: 5,
-          });
+          businessId,
+          query: message,
+          limit: 5,
+        });
 
+    /**
+     * Generate the AI reply using:
+     * - business profile
+     * - AI settings
+     * - products
+     * - FAQs
+     * - knowledge base matches
+     */
     const reply = await generateAIReply({
       customerMessage: message,
       business,
@@ -102,6 +144,7 @@ export async function POST(req: Request) {
       reply,
       debug: {
         businessName: business.name,
+        businessId,
         productsUsed: products?.length || 0,
         faqsUsed: faqs?.length || 0,
         knowledgeMatchesFound: knowledgeMatches.length,

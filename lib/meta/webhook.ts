@@ -48,7 +48,10 @@ Delivery: Available within nearby areas
 
       const aiReply = await generateAIReply({
         customerMessage: messageText,
-        businessData,
+        business: businessData,
+        aiSettings: { tone: "friendly" },
+        products: [],
+        faqs: [],
       });
 
       await sendMessengerMessage({

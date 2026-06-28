@@ -1,12 +1,14 @@
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { validateProduct } from "@/lib/validators/product";
-
-const BUSINESS_ID = Number(process.env.DEFAULT_BUSINESS_ID || "1");
+import { requireBusiness } from "@/lib/auth/require-business";
+import { requireUser } from "@/lib/auth/require-user";
 
 /**
  * Safe product columns.
- * These are okay to expose to the dashboard UI.
+ *
+ * products is a child table of businesses.
+ * Each product belongs to one business through business_id.
  */
 const PRODUCT_COLUMNS = `
   id,
@@ -22,11 +24,42 @@ const PRODUCT_COLUMNS = `
 `;
 
 export async function GET() {
+    const { errorResponse } = await requireUser();
+
+  if (errorResponse) {
+    return errorResponse;
+  }
+
   try {
+    /**
+     * Protect this API route.
+     *
+     * requireBusiness() checks:
+     * 1. Is the user logged in?
+     * 2. Does the logged-in user own a business?
+     *
+     * This replaces:
+     * const BUSINESS_ID = Number(process.env.DEFAULT_BUSINESS_ID || "1");
+     */
+    const { business, errorResponse } = await requireBusiness();
+
+    if (errorResponse) {
+      return errorResponse;
+    }
+
+    /**
+     * products is a child table.
+     *
+     * So we use:
+     * .eq("business_id", business.id)
+     *
+     * This makes sure the logged-in user only sees products
+     * for their own business.
+     */
     const { data, error } = await supabaseAdmin
       .from("products")
       .select(PRODUCT_COLUMNS)
-      .eq("business_id", BUSINESS_ID)
+      .eq("business_id", business.id)
       .order("created_at", { ascending: false });
 
     if (error) {
@@ -58,8 +91,23 @@ export async function GET() {
 
 export async function POST(req: Request) {
   try {
+    /**
+     * Same protection for creating products.
+     *
+     * The product will be created under the logged-in user's business,
+     * not DEFAULT_BUSINESS_ID.
+     */
+    const { business, errorResponse } = await requireBusiness();
+
+    if (errorResponse) {
+      return errorResponse;
+    }
+
     const body = await req.json();
 
+    /**
+     * Validate and clean product input before inserting.
+     */
     const validation = validateProduct(body);
 
     if (!validation.success) {
@@ -72,10 +120,19 @@ export async function POST(req: Request) {
       );
     }
 
+    /**
+     * Insert the product under this user's business.
+     *
+     * OLD:
+     * business_id: BUSINESS_ID
+     *
+     * NEW:
+     * business_id: business.id
+     */
     const { data, error } = await supabaseAdmin
       .from("products")
       .insert({
-        business_id: BUSINESS_ID,
+        business_id: business.id,
         ...validation.data,
       })
       .select(PRODUCT_COLUMNS)
