@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Bot, MessageSquare, RefreshCw, User, Send } from "lucide-react";
 
 type ConversationStatus = "open" | "needs_human" | "closed";
@@ -47,6 +47,12 @@ export default function ConversationsPage() {
   useEffect(() => {
     loadConversations();
   }, []);
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({
+      behavior: "smooth",
+    });
+  }, [messages]);
 
 
   async function sendManualReply() {
@@ -334,7 +340,7 @@ export default function ConversationsPage() {
                 </div>
               </div>
             ) : (
-              <div className="flex min-h-[650px] flex-col">
+              <div className="flex h-[calc(100vh-170px)] flex-col">
                 <div className="border-b p-5">
                   <div className="flex flex-col justify-between gap-4 md:flex-row md:items-start">
                     <div>
@@ -382,8 +388,8 @@ export default function ConversationsPage() {
                   </div>
                 </div>
 
-                <div className="flex-1 space-y-4 overflow-y-auto bg-gray-50 p-5">
-                  {isLoadingMessages ? (
+                <div className="flex-1 overflow-y-auto bg-gray-50 p-5 scroll-smooth">
+                  <div className="space-y-4">                  {isLoadingMessages ? (
                     <div className="text-sm text-gray-500">
                       Loading messages...
                     </div>
@@ -392,10 +398,18 @@ export default function ConversationsPage() {
                       No messages found for this conversation.
                     </div>
                   ) : (
-                    messages.map((message) => (
-                      <MessageBubble key={message.id} message={message} />
-                    ))
+                    <>
+                      {messages.map((message) => (
+                        <MessageBubble
+                          key={message.id}
+                          message={message}
+                        />
+                      ))}
+
+                      <div ref={messagesEndRef} />
+                    </>
                   )}
+                  </div>
                 </div>
 
                 <div className="border-t bg-white p-5">
