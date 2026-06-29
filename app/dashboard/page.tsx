@@ -1,14 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import {
-  Bot,
-  MessageCircle,
-  Package,
-  RefreshCw,
-  ShieldQuestion,
-  Users,
-} from "lucide-react";
+import Image from "next/image";
+import { RefreshCw } from "lucide-react";
 
 type DashboardOverview = {
   stats: {
@@ -133,35 +127,70 @@ export default function DashboardPage() {
             title="Total Conversations"
             value={overview.stats.totalConversations.toString()}
             description="Messenger threads"
-            icon={<MessageCircle size={20} />}
+            icon={
+              <Image
+                src="/images/aichat.png"
+                alt="Total Conversations"
+                width={50}
+                height={50}
+              />
+            }
           />
 
           <StatCard
             title="AI Response Rate"
             value={`${overview.stats.aiResponseRate}%`}
             description="AI replies vs customer messages"
-            icon={<Bot size={20} />}
+            icon={
+              <Image
+                src="/images/ai-response-rate.png"
+                alt="AI Response Rate"
+                width={50}
+                height={50}
+              />
+            }
           />
 
           <StatCard
             title="Human Handoffs"
             value={overview.stats.humanHandoffs.toString()}
             description="Needs human support"
-            icon={<Users size={20} />}
+            icon={
+              <Image
+                src="/images/human-handoff.png"
+                alt="Human Handoffs"
+                width={50}
+                height={50}
+              />
+            }
           />
 
           <StatCard
             title="Active Products"
             value={overview.stats.activeProducts.toString()}
             description="Available products/services"
-            icon={<Package size={20} />}
+            icon={
+              <Image
+                src="/images/active-products.png"
+                alt="Active Products"
+                width={50}
+                height={50}
+              />
+            }
           />
 
           <StatCard
             title="Active FAQs"
             value={overview.stats.activeFaqs.toString()}
             description="AI knowledge entries"
-            icon={<ShieldQuestion size={20} />}
+            icon={
+              <Image
+                src="/images/active-faqs.png"
+                alt="Active FAQs"
+                width={50}
+                height={50}
+              />
+            }
           />
         </section>
 
@@ -210,20 +239,40 @@ export default function DashboardPage() {
             </h2>
 
             <div className="mt-5 rounded-xl border p-5">
-              <p className="text-sm text-gray-500">Connected Page</p>
-              <p className="mt-1 font-semibold text-gray-900">
-                {overview.messenger.pageName}
-              </p>
+              {/* DAGDAG LANG ITO */}
+              <div className="flex items-center gap-4">
 
-              <div
-                className={`mt-4 inline-flex rounded-full px-3 py-1 text-xs font-medium ${
-                  overview.messenger.isConnected
-                    ? "bg-emerald-100 text-emerald-700"
-                    : "bg-gray-200 text-gray-700"
-                }`}
-              >
-                {overview.messenger.isConnected ? "Connected" : "Not Connected"}
+                <Image
+                  src="/images/facebook.png"
+                  alt="Facebook"
+                  width={56}
+                  height={56}
+                  className="h-14 w-14 object-contain flex-shrink-0"
+                />
+
+                {/* LAHAT NG EXISTING CODE MO */}
+                <div>
+                  <p className="text-sm text-gray-500">Connected Page</p>
+
+                  <p className="mt-1 font-semibold text-gray-900">
+                    {overview.messenger.pageName}
+                  </p>
+
+                  <div
+                    className={`mt-4 inline-flex rounded-full px-3 py-1 text-xs font-medium ${overview.messenger.isConnected
+                      ? "bg-emerald-100 text-emerald-700"
+                      : "bg-gray-200 text-gray-700"
+                      }`}
+                  >
+                    {overview.messenger.isConnected
+                      ? "Connected"
+                      : "Not Connected"}
+                  </div>
+                </div>
+
               </div>
+              {/* HANGGANG DITO LANG ANG DAGDAG */}
+
             </div>
 
             <p className="mt-4 text-sm text-gray-500">
@@ -283,11 +332,11 @@ export default function DashboardPage() {
                       <td className="py-5 text-sm text-gray-500">
                         {conversation.last_message_at
                           ? new Date(
-                              conversation.last_message_at
-                            ).toLocaleString("en-PH", {
-                              dateStyle: "medium",
-                              timeStyle: "short",
-                            })
+                            conversation.last_message_at
+                          ).toLocaleString("en-PH", {
+                            dateStyle: "medium",
+                            timeStyle: "short",
+                          })
                           : "No time"}
                       </td>
                     </tr>

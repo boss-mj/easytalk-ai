@@ -63,7 +63,7 @@ export default function Sidebar() {
         <SidebarItem
           href="/dashboard/conversations"
           icon={<MessageSquare size={18} />}
-          text="Conversations"
+          text="Inbox"
           active={isActive("/dashboard/conversations")}
         />
 
