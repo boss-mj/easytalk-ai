@@ -11,7 +11,8 @@ import {
   Settings,
   Bot,
   FileText,
-  Sparkles
+  Sparkles,
+  Link2
 } from "lucide-react";
 import { LogOut } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -98,6 +99,14 @@ export default function Sidebar() {
 
         <SectionTitle title="BUSINESS" />
 
+        <SidebarItem
+          href= "/dashboard/connect"
+          icon={<Link2 size={18} />}
+          text="Connect Page"
+          active={isActive("/dashboard/connect")}
+        />
+
+        
         <SidebarItem
           href="/dashboard/business"
           icon={<Building2 size={18} />}
