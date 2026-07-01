@@ -38,6 +38,51 @@ function formatConversationHistory(history: ConversationHistoryMessage[]) {
     .join("\n");
 }
 
+/**
+ * Prevents this bug:
+ *
+ * "We do not sell manok.
+ * A team member will assist you shortly."
+ *
+ * If the AI already gave a useful answer, we remove the extra fallback sentence.
+ */
+function removeUnnecessaryFallback(reply: string, fallbackMessage: string) {
+  const cleanedReply = reply.trim();
+  const cleanedFallback = fallbackMessage.trim();
+
+  if (!cleanedReply) return cleanedFallback;
+
+  /**
+   * If the whole reply is only the fallback, keep it.
+   */
+  if (cleanedReply.toLowerCase() === cleanedFallback.toLowerCase()) {
+    return cleanedReply;
+  }
+
+  /**
+   * If fallback was appended after a useful answer, remove it.
+   */
+  const fallbackIndex = cleanedReply
+    .toLowerCase()
+    .indexOf(cleanedFallback.toLowerCase());
+
+  if (fallbackIndex > 0) {
+    return cleanedReply.slice(0, fallbackIndex).trim();
+  }
+
+  /**
+   * Also remove common fallback-style endings.
+   */
+  return cleanedReply
+    .replace(/i am not sure about that yet\.?/gi, "")
+    .replace(/i'm not sure about that yet\.?/gi, "")
+    .replace(/a team member will assist you shortly\.?/gi, "")
+    .replace(/a team member can assist you shortly\.?/gi, "")
+    .replace(/a team member can also assist you shortly\.?/gi, "")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
 export async function generateAIReply({
   customerMessage,
   business,
@@ -75,7 +120,10 @@ export async function generateAIReply({
   const faqText =
     faqs.length > 0
       ? faqs
-          .map((faq) => `Q: ${faq.question}\nA: ${faq.answer || "No answer provided."}`)
+          .map(
+            (faq) =>
+              `Q: ${faq.question}\nA: ${faq.answer || "No answer provided."}`
+          )
           .join("\n\n")
       : "No FAQs added yet.";
 
@@ -125,8 +173,14 @@ Business answer rules:
 - Use only the business profile, products, FAQs, uploaded document matches, and conversation history.
 - Prioritize uploaded document matches when they directly answer the customer.
 - Do not invent prices, products, schedules, delivery rules, payment methods, or policies.
-- If the answer is not in the provided data, say: "${fallbackMessage}"
-- If the customer needs a human, politely say a team member will assist them shortly.
+
+Very important fallback rule:
+- Use this fallback only when you cannot answer the customer at all: "${fallbackMessage}"
+- Do NOT add the fallback after a useful answer.
+- If the customer asks for a product that is not listed, answer directly that the business does not currently sell or list that product.
+- Example: If the customer asks "may manok kayo?" and there is no manok in the product list, say that the business currently does not have manok listed.
+- Do NOT also say "I am not sure about that yet" after saying the product is not available.
+- Do NOT end every reply with "a team member will assist you shortly."
         `,
       },
       {
@@ -164,5 +218,7 @@ Reply to the latest customer message using the conversation history and business
     ],
   });
 
-  return response.output_text?.trim() || fallbackMessage;
+  const rawReply = response.output_text?.trim() || fallbackMessage;
+
+  return removeUnnecessaryFallback(rawReply, fallbackMessage);
 }
