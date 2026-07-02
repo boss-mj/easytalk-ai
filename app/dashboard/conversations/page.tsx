@@ -79,10 +79,16 @@ export default function ConversationsPage() {
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
 
   const [errorMessage, setErrorMessage] = useState("");
+  const messagesEndRef = useRef<HTMLDivElement | null>(null);
+
   const [visibleConversationCount, setVisibleConversationCount] = useState(8);
+  const [openMenu, setOpenMenu] = useState<
+    "more" | "notifications" | "profile" | "assign" | null
+  >(null);
+
   const [toastMessage, setToastMessage] = useState("");
-  const [noteText, setNoteText] = useState("");
   const [isNoteModalOpen, setIsNoteModalOpen] = useState(false);
+  const [noteText, setNoteText] = useState("");
 
   const [notesByConversation, setNotesByConversation] = useState<
     Record<number, string>
@@ -92,11 +98,8 @@ export default function ConversationsPage() {
     Record<number, string>
   >({});
 
-  const [openMenu, setOpenMenu] = useState<"more" | "assign" | null>(null);
-
-  const messagesEndRef = useRef<HTMLDivElement>(null);
-  const replyTextareaRef = useRef<HTMLTextAreaElement>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const replyTextareaRef = useRef<HTMLTextAreaElement | null>(null);
 
   useEffect(() => {
     loadConversations();
@@ -111,13 +114,13 @@ export default function ConversationsPage() {
   const stats = useMemo(() => {
     const total = conversations.length;
     const open = conversations.filter(
-      (conversation) => conversation.status === "open",
+      (conversation) => conversation.status === "open"
     ).length;
     const needsHuman = conversations.filter(
-      (conversation) => conversation.status === "needs_human",
+      (conversation) => conversation.status === "needs_human"
     ).length;
     const closed = conversations.filter(
-      (conversation) => conversation.status === "closed",
+      (conversation) => conversation.status === "closed"
     ).length;
 
     return { total, open, needsHuman, closed };
@@ -210,7 +213,7 @@ export default function ConversationsPage() {
       window.open(
         selectedConversation.customer_profile_pic,
         "_blank",
-        "noopener,noreferrer",
+        "noopener,noreferrer"
       );
       return;
     }
@@ -351,8 +354,8 @@ export default function ConversationsPage() {
 
       const updatedSelected = selectedConversation
         ? loadedConversations.find(
-            (conversation) => conversation.id === selectedConversation.id,
-          )
+          (conversation) => conversation.id === selectedConversation.id
+        )
         : null;
 
       const conversationToSelect = updatedSelected || loadedConversations[0];
@@ -469,8 +472,8 @@ export default function ConversationsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#F6F9F8] p-4 text-[#102A2D]">
-      <div className="mx-auto flex min-h-screen max-w-[1850px] flex-col gap-4">
+    <div className="h-screen overflow-hidden bg-[#F6F9F8] p-4 text-[#102A2D]">
+      <div className="mx-auto flex h-full max-w-[1600px] flex-col gap-4 overflow-hidden">
         <header className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
           <div className="flex items-start gap-3">
             <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#EAF7EF] text-[#0F766E] shadow-sm">
@@ -585,8 +588,8 @@ export default function ConversationsPage() {
           />
         </section>
 
-        <main className="grid flex-1 gap-4 xl:grid-cols-[360px_minmax(0,1fr)_340px]">
-          <section className="flex h-[calc(100vh-240px)] flex-col rounded-2xl border border-[#DDE7E4] bg-white shadow-sm">
+        <main className="grid min-h-0 flex-1 gap-4 overflow-hidden xl:grid-cols-[390px_minmax(0,1fr)_300px]">
+          <section className="overflow-hidden rounded-2xl border border-[#DDE7E4] bg-white shadow-sm">
             <div className="border-b border-[#DDE7E4] p-4">
               <div className="mb-4 flex items-center justify-between gap-3">
                 <div>
@@ -610,11 +613,10 @@ export default function ConversationsPage() {
                     key={filter.value}
                     type="button"
                     onClick={() => setStatusFilter(filter.value)}
-                    className={`rounded-xl px-3 py-2 text-xs font-semibold transition ${
-                      statusFilter === filter.value
-                        ? "bg-[#0F766E] text-white shadow-sm"
-                        : "border border-[#DDE7E4] bg-[#F8FBFA] text-[#647A7B] hover:bg-[#EAF7EF] hover:text-[#0F766E]"
-                    }`}
+                    className={`rounded-xl px-3 py-2 text-xs font-semibold transition ${statusFilter === filter.value
+                      ? "bg-[#0F766E] text-white shadow-sm"
+                      : "border border-[#DDE7E4] bg-[#F8FBFA] text-[#647A7B] hover:bg-[#EAF7EF] hover:text-[#0F766E]"
+                      }`}
                   >
                     {filter.label}
                   </button>
@@ -622,7 +624,7 @@ export default function ConversationsPage() {
               </div>
             </div>
 
-            <div className="flex-1 overflow-y-auto">
+            <div className="min-h-0 flex-1 overflow-y-auto">
               {isLoadingConversations ? (
                 <div className="space-y-3 p-4">
                   {[1, 2, 3].map((item) => (
@@ -634,7 +636,10 @@ export default function ConversationsPage() {
                 </div>
               ) : filteredConversations.length === 0 ? (
                 <div className="p-8 text-center">
-                  <MessageSquare className="mx-auto text-[#A7BCBD]" size={42} />
+                  <MessageSquare
+                    className="mx-auto text-[#A7BCBD]"
+                    size={42}
+                  />
                   <p className="mt-3 font-semibold text-[#102A2D]">
                     No conversations found
                   </p>
@@ -652,11 +657,10 @@ export default function ConversationsPage() {
                       key={conversation.id}
                       type="button"
                       onClick={() => selectConversation(conversation)}
-                      className={`w-full border-b border-[#DDE7E4] p-4 text-left transition last:border-none ${
-                        isSelected
-                          ? "bg-[#EAF7EF]"
-                          : "bg-white hover:bg-[#F6F9F8]"
-                      }`}
+                      className={`w-full border-b border-[#DDE7E4] p-4 text-left transition last:border-none ${isSelected
+                        ? "bg-[#EAF7EF]"
+                        : "bg-white hover:bg-[#F6F9F8]"
+                        }`}
                     >
                       <div className="flex gap-3">
                         <Avatar
@@ -705,15 +709,13 @@ export default function ConversationsPage() {
                 disabled={!hasMoreConversations}
                 className="flex w-full items-center justify-center gap-2 rounded-xl border border-[#DDE7E4] bg-white px-4 py-3 text-sm font-semibold text-[#647A7B] transition hover:bg-[#F6F9F8] disabled:cursor-not-allowed disabled:opacity-50"
               >
-                {hasMoreConversations
-                  ? "Load more conversations"
-                  : "All conversations loaded"}
+                {hasMoreConversations ? "Load more conversations" : "All conversations loaded"}
                 <ChevronDown size={16} />
               </button>
             </div>
           </section>
 
-          <section className="flex h-[calc(100vh-240px)] flex-col rounded-2xl border border-[#DDE7E4] bg-white shadow-sm">
+          <section className="flex min-h-0 flex-col overflow-hidden rounded-2xl border border-[#DDE7E4] bg-white shadow-sm">
             {!selectedConversation ? (
               <div className="flex min-h-[720px] items-center justify-center p-8 text-center">
                 <div>
@@ -766,9 +768,13 @@ export default function ConversationsPage() {
                       />
 
                       <StatusActionButton
-                        active={selectedConversation.status === "needs_human"}
+                        active={
+                          selectedConversation.status === "needs_human"
+                        }
                         disabled={isUpdatingStatus}
-                        onClick={() => updateConversationStatus("needs_human")}
+                        onClick={() =>
+                          updateConversationStatus("needs_human")
+                        }
                         label="Needs Human"
                         variant="needs_human"
                       />
@@ -784,9 +790,7 @@ export default function ConversationsPage() {
                       <div className="relative">
                         <button
                           type="button"
-                          onClick={() =>
-                            setOpenMenu(openMenu === "more" ? null : "more")
-                          }
+                          onClick={() => setOpenMenu(openMenu === "more" ? null : "more")}
                           className="flex items-center gap-2 rounded-xl border border-[#DDE7E4] bg-white px-3 py-2 text-xs font-semibold text-[#647A7B] transition hover:bg-[#F6F9F8]"
                         >
                           More
@@ -810,10 +814,7 @@ export default function ConversationsPage() {
                             <button
                               type="button"
                               onClick={() => {
-                                copyText(
-                                  selectedConversation.customer_psid,
-                                  "Customer ID",
-                                );
+                                copyText(selectedConversation.customer_psid, "Customer ID");
                                 setOpenMenu(null);
                               }}
                               className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-sm font-semibold text-[#647A7B] transition hover:bg-[#F6F9F8] hover:text-[#0F766E]"
@@ -852,8 +853,8 @@ export default function ConversationsPage() {
                   </div>
                 </div>
 
-                <div className="flex-1 overflow-y-auto bg-[#FBFDFC] p-4 pb-4 scroll-smooth">
-                  <div className="mx-auto max-w-4xl space-y-4">
+                <div className="min-h-0 flex-1 overflow-y-auto bg-[#FBFDFC] p-4 scroll-smooth">
+                  <div className="mx-auto max-w-4xl space-y-5">
                     <div className="flex justify-center">
                       <span className="rounded-full bg-[#EEF3F2] px-3 py-1 text-xs font-medium text-[#647A7B]">
                         Jul 1, 2026
@@ -881,15 +882,15 @@ export default function ConversationsPage() {
                   </div>
                 </div>
 
-                <div className="shrink-0 border-t border-[#DDE7E4] bg-white px-4 py-2.5">
-                  <div className="rounded-2xl border border-[#DDE7E4] bg-white px-3 py-2.5 shadow-sm focus-within:border-[#0F766E] focus-within:ring-4 focus-within:ring-[#EAF7EF]">
+                <div className="border-t border-[#DDE7E4] bg-white p-4">
+                  <div className="rounded-2xl border border-[#DDE7E4] bg-white p-3 shadow-sm focus-within:border-[#0F766E] focus-within:ring-4 focus-within:ring-[#EAF7EF]">
                     <textarea
                       ref={replyTextareaRef}
                       value={manualReply}
                       onChange={(event) => setManualReply(event.target.value)}
                       rows={1}
                       placeholder="Type a manual human reply..."
-                      className="min-h-[42px] max-h-[90px] w-full resize-none border-0 bg-transparent px-1 text-sm leading-6 text-[#102A2D] outline-none placeholder:text-[#8AA0A1]"
+                      className="min-h-[56px] w-full resize-none border-0 bg-transparent px-1 text-sm text-[#102A2D] outline-none placeholder:text-[#8AA0A1]"
                     />
 
                     <input
@@ -899,42 +900,43 @@ export default function ConversationsPage() {
                       onChange={handleAttachFile}
                     />
 
-                    <div className="mt-1.5 flex items-center justify-between gap-3">
-                      <div className="flex items-center gap-1.5">
+                    <div className="mt-2 flex items-center justify-between gap-3">
+                      <div className="flex items-center gap-2">
                         <button
                           onClick={() => fileInputRef.current?.click()}
                           type="button"
-                          className="flex h-8 w-8 items-center justify-center rounded-lg text-[#647A7B] transition hover:bg-[#F6F9F8] hover:text-[#0F766E]"
+                          className="flex h-9 w-9 items-center justify-center rounded-xl text-[#647A7B] transition hover:bg-[#F6F9F8] hover:text-[#0F766E]"
                         >
-                          <Paperclip size={17} />
+                          <Paperclip size={18} />
                         </button>
-
                         <button
                           onClick={insertEmoji}
                           type="button"
-                          className="flex h-8 w-8 items-center justify-center rounded-lg text-[#647A7B] transition hover:bg-[#F6F9F8] hover:text-[#0F766E]"
+                          className="flex h-9 w-9 items-center justify-center rounded-xl text-[#647A7B] transition hover:bg-[#F6F9F8] hover:text-[#0F766E]"
                         >
-                          <Smile size={17} />
+                          <Smile size={18} />
                         </button>
                       </div>
 
                       <button
                         type="button"
                         onClick={sendManualReply}
-                        disabled={isSendingManualReply || !manualReply.trim()}
-                        className="flex h-9 items-center justify-center gap-2 rounded-xl bg-[#0F766E] px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-[#115E59] disabled:cursor-not-allowed disabled:opacity-60"
+                        disabled={
+                          isSendingManualReply || !manualReply.trim()
+                        }
+                        className="flex h-11 items-center justify-center gap-2 rounded-xl bg-[#0F766E] px-5 text-sm font-semibold text-white shadow-sm transition hover:bg-[#115E59] disabled:cursor-not-allowed disabled:opacity-60"
                       >
                         {isSendingManualReply ? (
-                          <Loader2 className="animate-spin" size={15} />
+                          <Loader2 className="animate-spin" size={16} />
                         ) : (
-                          <Send size={15} />
+                          <Send size={16} />
                         )}
                         {isSendingManualReply ? "Sending..." : "Send"}
                       </button>
                     </div>
                   </div>
 
-                  <p className="mt-1.5 text-xs text-[#8AA0A1]">
+                  <p className="mt-2 text-xs text-[#8AA0A1]">
                     This sends a real Messenger message from your Facebook Page.
                   </p>
                 </div>
@@ -942,7 +944,7 @@ export default function ConversationsPage() {
             )}
           </section>
 
-          <aside className="flex h-[calc(100vh-240px)] flex-col rounded-2xl border border-[#DDE7E4] bg-white shadow-sm">
+          <aside className="overflow-hidden rounded-2xl border border-[#DDE7E4] bg-white shadow-sm">
             {!selectedConversation ? (
               <div className="flex min-h-[720px] items-center justify-center p-8 text-center">
                 <div>
@@ -955,11 +957,13 @@ export default function ConversationsPage() {
             ) : (
               <div className="flex h-full min-h-0 flex-col">
                 <div className="flex items-center justify-between border-b border-[#DDE7E4] p-4">
-                  <h2 className="font-bold text-[#102A2D]">Customer Details</h2>
+                  <h2 className="font-bold text-[#102A2D]">
+                    Customer Details
+                  </h2>
                   <ChevronDown size={18} className="text-[#647A7B]" />
                 </div>
 
-                <div className="flex-1 space-y-4 overflow-y-auto p-4">
+                <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-4">
                   <div className="text-center">
                     <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-[#BDF4D5] text-2xl font-bold text-[#0F766E]">
                       {getInitials(selectedConversation)}
@@ -969,11 +973,12 @@ export default function ConversationsPage() {
                       {getCustomerLabel(selectedConversation)}
                     </h3>
 
-                    <p className="mt-1 text-sm text-[#647A7B]">Facebook User</p>
+                    <p className="mt-1 text-sm text-[#647A7B]">
+                      Facebook User
+                    </p>
 
                     <button
                       type="button"
-                      onClick={handleViewProfile}
                       className="mt-4 inline-flex items-center gap-2 rounded-xl border border-[#DDE7E4] bg-white px-4 py-2 text-sm font-semibold text-[#102A2D] transition hover:bg-[#F6F9F8]"
                     >
                       View Profile
@@ -1033,8 +1038,7 @@ export default function ConversationsPage() {
                         label="Assigned to"
                         value={
                           <span className="text-sm font-semibold text-[#102A2D]">
-                            {assigneesByConversation[selectedConversation.id] ||
-                              "AI Assistant"}
+                            {assigneesByConversation[selectedConversation.id] || "AI Assistant"}
                           </span>
                         }
                       />
@@ -1071,9 +1075,7 @@ export default function ConversationsPage() {
                       <div className="relative">
                         <button
                           type="button"
-                          onClick={() =>
-                            setOpenMenu(openMenu === "assign" ? null : "assign")
-                          }
+                          onClick={() => setOpenMenu(openMenu === "assign" ? null : "assign")}
                           className="flex w-full items-center justify-center gap-2 rounded-xl border border-[#DDE7E4] bg-white px-3 py-3 text-sm font-semibold text-[#647A7B] transition hover:bg-[#F6F9F8] hover:text-[#0F766E]"
                         >
                           <UserPlus size={16} />
@@ -1177,11 +1179,6 @@ export default function ConversationsPage() {
           </div>
         )}
 
-        {toastMessage && (
-          <div className="fixed bottom-5 right-5 z-50 rounded-2xl bg-[#102A2D] px-4 py-3 text-sm font-semibold text-white shadow-xl">
-            {toastMessage}
-          </div>
-        )}
       </div>
     </div>
   );
@@ -1242,18 +1239,18 @@ function Avatar({
       <img
         src={imageUrl}
         alt={label}
-        className={`h-12 w-12 shrink-0 rounded-full object-cover ring-2 ${
-          active ? "ring-[#0F766E]/30" : "ring-transparent"
-        }`}
+        className={`h-12 w-12 shrink-0 rounded-full object-cover ring-2 ${active ? "ring-[#0F766E]/30" : "ring-transparent"
+          }`}
       />
     );
   }
 
   return (
     <div
-      className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-full text-sm font-bold ${
-        active ? "bg-[#BDF4D5] text-[#0F766E]" : "bg-[#EEF3F2] text-[#647A7B]"
-      }`}
+      className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-full text-sm font-bold ${active
+        ? "bg-[#BDF4D5] text-[#0F766E]"
+        : "bg-[#EEF3F2] text-[#647A7B]"
+        }`}
     >
       {label}
     </div>
@@ -1276,9 +1273,7 @@ function MessageBubble({ message }: { message: Message }) {
   }
 
   return (
-    <div
-      className={`flex gap-3 ${isCustomer ? "justify-start" : "justify-end"}`}
-    >
+    <div className={`flex gap-3 ${isCustomer ? "justify-start" : "justify-end"}`}>
       {isCustomer && (
         <div className="mt-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#EEF3F2] text-[#647A7B]">
           <User size={17} />
@@ -1288,6 +1283,18 @@ function MessageBubble({ message }: { message: Message }) {
       {!isCustomer && (
         <div className="mt-1 hidden h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#0F766E] text-white sm:flex">
           {isAI ? <Bot size={17} /> : <UserRoundCheck size={17} />}
+        </div>
+      )}
+
+      <div
+        className={`max-w-[82%] rounded-2xl px-4 py-3 shadow-sm ${isCustomer
+          ? "rounded-bl-sm border border-[#DDE7E4] bg-[#F8FBFA] text-[#102A2D]"
+          : "rounded-br-sm bg-gradient-to-br from-[#0F766E] to-[#115E59] text-white"
+          }`}
+      >
+        <div className="mb-2 flex items-center gap-2 text-xs opacity-80">
+          {isCustomer ? <User size={14} /> : <Bot size={14} />}
+          <span>{isCustomer ? "Customer" : isAI ? "AI Assistant" : "Human"}</span>
         </div>
       )}
 
@@ -1394,7 +1401,13 @@ function DetailsRow({
   );
 }
 
-function InfoPill({ label, value }: { label: string; value: React.ReactNode }) {
+function InfoPill({
+  label,
+  value,
+}: {
+  label: string;
+  value: React.ReactNode;
+}) {
   return (
     <div className="flex items-center justify-between gap-3 rounded-xl bg-[#F8FBFA] px-3 py-3">
       <span className="text-sm text-[#647A7B]">{label}</span>
