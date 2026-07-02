@@ -270,7 +270,7 @@ export default function ConversationsPage() {
           body: JSON.stringify({
             text: manualReply,
           }),
-        }
+        },
       );
 
       const result = await response.json();
@@ -286,15 +286,15 @@ export default function ConversationsPage() {
         current.map((conversation) =>
           conversation.id === result.conversation.id
             ? result.conversation
-            : conversation
-        )
+            : conversation,
+        ),
       );
 
       setManualReply("");
     } catch (error) {
       console.error("Send manual reply error:", error);
       setErrorMessage(
-        error instanceof Error ? error.message : "Failed to send manual reply."
+        error instanceof Error ? error.message : "Failed to send manual reply.",
       );
     } finally {
       setIsSendingManualReply(false);
@@ -367,7 +367,7 @@ export default function ConversationsPage() {
       setErrorMessage(
         error instanceof Error
           ? error.message
-          : "Failed to load conversations."
+          : "Failed to load conversations.",
       );
     } finally {
       setIsLoadingConversations(false);
@@ -383,7 +383,7 @@ export default function ConversationsPage() {
         `/api/conversations/${conversationId}/messages`,
         {
           cache: "no-store",
-        }
+        },
       );
 
       const result = await response.json();
@@ -396,7 +396,7 @@ export default function ConversationsPage() {
     } catch (error) {
       console.error("Load messages error:", error);
       setErrorMessage(
-        error instanceof Error ? error.message : "Failed to load messages."
+        error instanceof Error ? error.message : "Failed to load messages.",
       );
     } finally {
       setIsLoadingMessages(false);
@@ -423,7 +423,7 @@ export default function ConversationsPage() {
             "Content-Type": "application/json",
           },
           body: JSON.stringify({ status }),
-        }
+        },
       );
 
       const result = await response.json();
@@ -440,13 +440,13 @@ export default function ConversationsPage() {
         current.map((conversation) =>
           conversation.id === updatedConversation.id
             ? updatedConversation
-            : conversation
-        )
+            : conversation,
+        ),
       );
     } catch (error) {
       console.error("Update status error:", error);
       setErrorMessage(
-        error instanceof Error ? error.message : "Failed to update status."
+        error instanceof Error ? error.message : "Failed to update status.",
       );
     } finally {
       setIsUpdatingStatus(false);
@@ -888,7 +888,7 @@ export default function ConversationsPage() {
                       ref={replyTextareaRef}
                       value={manualReply}
                       onChange={(event) => setManualReply(event.target.value)}
-                      rows={2}
+                      rows={1}
                       placeholder="Type a manual human reply..."
                       className="min-h-[56px] w-full resize-none border-0 bg-transparent px-1 text-sm text-[#102A2D] outline-none placeholder:text-[#8AA0A1]"
                     />
@@ -1296,12 +1296,20 @@ function MessageBubble({ message }: { message: Message }) {
           {isCustomer ? <User size={14} /> : <Bot size={14} />}
           <span>{isCustomer ? "Customer" : isAI ? "AI Assistant" : "Human"}</span>
         </div>
+      )}
 
+      <div
+        className={`max-w-[78%] rounded-2xl px-4 py-2.5 shadow-sm ${
+          isCustomer
+            ? "rounded-bl-sm border border-[#DDE7E4] bg-[#F8FBFA] text-[#102A2D]"
+            : "rounded-br-sm bg-gradient-to-br from-[#0F766E] to-[#115E59] text-white"
+        }`}
+      >
         <p className="whitespace-pre-wrap text-sm leading-relaxed">
           {message.message_text}
         </p>
 
-        <p className="mt-2 text-[11px] opacity-70">
+        <p className="mt-1.5 text-[11px] opacity-70">
           {new Date(message.created_at).toLocaleString("en-PH", {
             dateStyle: "medium",
             timeStyle: "short",
