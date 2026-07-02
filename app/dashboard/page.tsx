@@ -1,13 +1,14 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Image from "next/image";
 import {
-  Bot,
-  MessageCircle,
-  Package,
   RefreshCw,
-  ShieldQuestion,
-  Users,
+  MessageSquareText,
+  Bot,
+  Headphones,
+  PackageCheck,
+  BadgeHelp,
 } from "lucide-react";
 
 type DashboardOverview = {
@@ -133,35 +134,40 @@ export default function DashboardPage() {
             title="Total Conversations"
             value={overview.stats.totalConversations.toString()}
             description="Messenger threads"
-            icon={<MessageCircle size={20} />}
+            icon={<MessageSquareText size={30} strokeWidth={2.2} />}
+            color="gray"
           />
 
           <StatCard
             title="AI Response Rate"
             value={`${overview.stats.aiResponseRate}%`}
             description="AI replies vs customer messages"
-            icon={<Bot size={20} />}
+            icon={<Bot size={30} strokeWidth={2.2} />}
+            color="gray"
           />
 
           <StatCard
             title="Human Handoffs"
             value={overview.stats.humanHandoffs.toString()}
             description="Needs human support"
-            icon={<Users size={20} />}
+            icon={<Headphones size={30} strokeWidth={2.2} />}
+            color="gray"
           />
 
           <StatCard
             title="Active Products"
             value={overview.stats.activeProducts.toString()}
             description="Available products/services"
-            icon={<Package size={20} />}
+            icon={<PackageCheck size={30} strokeWidth={2.2} />}
+            color="gray"
           />
 
           <StatCard
             title="Active FAQs"
             value={overview.stats.activeFaqs.toString()}
             description="AI knowledge entries"
-            icon={<ShieldQuestion size={20} />}
+            icon={<BadgeHelp size={30} strokeWidth={2.2} />}
+            color="gray"
           />
         </section>
 
@@ -210,20 +216,40 @@ export default function DashboardPage() {
             </h2>
 
             <div className="mt-5 rounded-xl border p-5">
-              <p className="text-sm text-gray-500">Connected Page</p>
-              <p className="mt-1 font-semibold text-gray-900">
-                {overview.messenger.pageName}
-              </p>
+              {/* DAGDAG LANG ITO */}
+              <div className="flex items-center gap-4">
 
-              <div
-                className={`mt-4 inline-flex rounded-full px-3 py-1 text-xs font-medium ${
-                  overview.messenger.isConnected
-                    ? "bg-emerald-100 text-emerald-700"
-                    : "bg-gray-200 text-gray-700"
-                }`}
-              >
-                {overview.messenger.isConnected ? "Connected" : "Not Connected"}
+                <Image
+                  src="/images/facebook.png"
+                  alt="Facebook"
+                  width={56}
+                  height={56}
+                  className="h-14 w-14 object-contain flex-shrink-0"
+                />
+
+                {/* LAHAT NG EXISTING CODE MO */}
+                <div>
+                  <p className="text-sm text-gray-500">Connected Page</p>
+
+                  <p className="mt-1 font-semibold text-gray-900">
+                    {overview.messenger.pageName}
+                  </p>
+
+                  <div
+                    className={`mt-4 inline-flex rounded-full px-3 py-1 text-xs font-medium ${overview.messenger.isConnected
+                      ? "bg-emerald-100 text-emerald-700"
+                      : "bg-gray-200 text-gray-700"
+                      }`}
+                  >
+                    {overview.messenger.isConnected
+                      ? "Connected"
+                      : "Not Connected"}
+                  </div>
+                </div>
+
               </div>
+              {/* HANGGANG DITO LANG ANG DAGDAG */}
+
             </div>
 
             <p className="mt-4 text-sm text-gray-500">
@@ -283,11 +309,11 @@ export default function DashboardPage() {
                       <td className="py-5 text-sm text-gray-500">
                         {conversation.last_message_at
                           ? new Date(
-                              conversation.last_message_at
-                            ).toLocaleString("en-PH", {
-                              dateStyle: "medium",
-                              timeStyle: "short",
-                            })
+                            conversation.last_message_at
+                          ).toLocaleString("en-PH", {
+                            dateStyle: "medium",
+                            timeStyle: "short",
+                          })
                           : "No time"}
                       </td>
                     </tr>
@@ -307,26 +333,40 @@ function StatCard({
   value,
   description,
   icon,
+  color,
 }: {
   title: string;
   value: string;
   description: string;
   icon: React.ReactNode;
+  color: "green" | "cyan" | "amber" | "blue" | "violet" | "gray" | "gray-700";
 }) {
+  const iconStyles = {
+    green: "bg-emerald-100 text-emerald-700 ring-emerald-200",
+    cyan: "bg-cyan-100 text-cyan-700 ring-cyan-200",
+    amber: "bg-amber-100 text-amber-700 ring-amber-200",
+    blue: "bg-blue-100 text-blue-700 ring-blue-200",
+    violet: "bg-violet-100 text-violet-700 ring-violet-200",
+    gray: "bg-gray-100 text-gray-700 ring-gray-200",
+    "gray-700": "bg-gray-700 text-gray-300 ring-gray-500",
+  };
+
   return (
-    <div className="rounded-2xl border bg-white p-5 shadow-sm">
+    <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
       <div className="flex items-start justify-between gap-4">
         <div>
-          <p className="text-sm font-medium text-gray-500">{title}</p>
-          <p className="mt-2 text-3xl font-bold text-gray-900">{value}</p>
+          <p className="text-sm font-medium text-slate-500">{title}</p>
+          <p className="mt-2 text-3xl font-bold text-slate-950">{value}</p>
         </div>
 
-        <div className="rounded-xl bg-emerald-50 p-3 text-emerald-600">
+        <div
+          className={`flex h-14 w-14 items-center justify-center rounded-2xl ring-1 ${iconStyles[color]}`}
+        >
           {icon}
         </div>
       </div>
 
-      <p className="mt-4 text-xs text-gray-400">{description}</p>
+      <p className="mt-4 text-xs text-slate-400">{description}</p>
     </div>
   );
 }

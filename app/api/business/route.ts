@@ -1,24 +1,15 @@
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase/admin";
-import { validateBusinessProfile } from "@/lib/validators/business";
 import { requireBusiness } from "@/lib/auth/require-business";
-import { requireUser } from "@/lib/auth/require-user";
 
-/**
- * Safe columns only.
- *
- * Important:
- * Do NOT expose page_access_token to the frontend.
- * That token should only be used on the server/webhook side.
- */
-const BUSINESS_SAFE_COLUMNS = `
+const BUSINESS_COLUMNS = `
   id,
   owner_id,
   name,
   description,
+  address,
   contact_number,
   email,
-  address,
   opening_hours,
   closing_hours,
   delivery_info,
@@ -30,24 +21,23 @@ const BUSINESS_SAFE_COLUMNS = `
   updated_at
 `;
 
+function cleanText(value: unknown, maxLength: number) {
+  if (typeof value !== "string") return null;
+
+  const cleaned = value.trim();
+
+  if (!cleaned) return null;
+
+  return cleaned.slice(0, maxLength);
+}
+
+/**
+ * GET /api/business
+ *
+ * Loads the logged-in user's business profile.
+ */
 export async function GET() {
-
-    const { errorResponse } = await requireUser();
-
-  if (errorResponse) {
-    return errorResponse;
-  }
-
   try {
-    /**
-     * requireBusiness() does two things:
-     *
-     * 1. Checks if the user is logged in.
-     * 2. Finds the business owned by that logged-in user.
-     *
-     * This replaces:
-     * const BUSINESS_ID = Number(process.env.DEFAULT_BUSINESS_ID || "1");
-     */
     const { business, errorResponse } = await requireBusiness();
 
     if (errorResponse) {
@@ -55,17 +45,13 @@ export async function GET() {
     }
 
     /**
-     * The businesses table uses "id", not "business_id".
+     * Re-query with selected safe columns only.
      *
-     * Why?
-     * Because this is the actual business row.
-     *
-     * Child tables like products, faqs, messages, conversations use:
-     * .eq("business_id", business.id)
+     * We do not return page_access_token to the frontend.
      */
     const { data, error } = await supabaseAdmin
       .from("businesses")
-      .select(BUSINESS_SAFE_COLUMNS)
+      .select(BUSINESS_COLUMNS)
       .eq("id", business.id)
       .eq("owner_id", business.owner_id)
       .maybeSingle();
@@ -84,7 +70,7 @@ export async function GET() {
       return NextResponse.json(
         {
           success: false,
-          error: "Business profile was not found for this account.",
+          error: "Business not found.",
         },
         { status: 404 }
       );
@@ -100,20 +86,20 @@ export async function GET() {
     return NextResponse.json(
       {
         success: false,
-        error: "Failed to load business profile.",
+        error: "Failed to load business.",
       },
       { status: 500 }
     );
   }
 }
 
+/**
+ * PUT /api/business
+ *
+ * Updates the logged-in user's business profile.
+ */
 export async function PUT(req: Request) {
   try {
-    /**
-     * Get the business owned by the currently logged-in user.
-     *
-     * This makes sure one user cannot update another user's business.
-     */
     const { business, errorResponse } = await requireBusiness();
 
     if (errorResponse) {
@@ -122,35 +108,44 @@ export async function PUT(req: Request) {
 
     const body = await req.json();
 
-    /**
-     * Validate and clean the business profile fields before saving.
-     */
-    const validation = validateBusinessProfile(body);
+    const name = cleanText(body.name, 120);
 
-    if (!validation.success) {
+    if (!name) {
       return NextResponse.json(
         {
           success: false,
-          error: validation.error,
+          error: "Business name is required.",
         },
         { status: 400 }
       );
     }
 
+    const payload = {
+      name,
+      description: cleanText(body.description, 1000),
+      address: cleanText(body.address, 500),
+      contact_number: cleanText(body.contact_number, 100),
+      email: cleanText(body.email, 150),
+      opening_hours: cleanText(body.opening_hours, 150),
+      closing_hours: cleanText(body.closing_hours, 150),
+      delivery_info: cleanText(body.delivery_info, 1000),
+      payment_methods: cleanText(body.payment_methods, 500),
+      updated_at: new Date().toISOString(),
+    };
+
     /**
-     * businesses table:
-     * - use .eq("id", business.id)
-     * - use .eq("owner_id", business.owner_id)
+     * Update only the business owned by the logged-in user.
      *
-     * Do NOT use .eq("business_id", business.id) here because
-     * the businesses table does not have a business_id column.
+     * businesses table uses:
+     * .eq("id", business.id)
+     * .eq("owner_id", business.owner_id)
      */
     const { data, error } = await supabaseAdmin
       .from("businesses")
-      .update(validation.data)
+      .update(payload)
       .eq("id", business.id)
       .eq("owner_id", business.owner_id)
-      .select(BUSINESS_SAFE_COLUMNS)
+      .select(BUSINESS_COLUMNS)
       .single();
 
     if (error) {
@@ -165,7 +160,7 @@ export async function PUT(req: Request) {
 
     return NextResponse.json({
       success: true,
-      message: "Business profile updated successfully.",
+      message: "Business updated successfully.",
       business: data,
     });
   } catch (error) {
@@ -174,7 +169,7 @@ export async function PUT(req: Request) {
     return NextResponse.json(
       {
         success: false,
-        error: "Failed to update business profile.",
+        error: "Failed to update business.",
       },
       { status: 500 }
     );
