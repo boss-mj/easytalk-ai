@@ -11,7 +11,7 @@
   "dependencies": {
     "@supabase/ssr": "^0.12.0",
     "@supabase/supabase-js": "^2.108.2",
-    "lucide-react": "^1.21.0",
+    "lucide-react": "^1.22.0",
     "mammoth": "^1.12.0",
     "next": "16.2.9",
     "ngrok": "^5.0.0-beta.2",

@@ -1,4 +1,4 @@
-import { getOpenAIClient } from "@/lib/openai/client";
+import { getOpenAIClient } from "@/lib/supabase/openai/client";
 
 export async function createEmbedding(text: string) {
   const openai = getOpenAIClient();
