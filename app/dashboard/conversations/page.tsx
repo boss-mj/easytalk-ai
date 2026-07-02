@@ -43,6 +43,7 @@ export default function ConversationsPage() {
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
 
   const [errorMessage, setErrorMessage] = useState("");
+  const messagesEndRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     loadConversations();
