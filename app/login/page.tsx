@@ -2,7 +2,8 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useState } from "react";
+import { FormEvent, useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   ArrowLeft,
   Eye,
@@ -15,11 +16,35 @@ import {
 } from "lucide-react";
 
 export default function LoginPage() {
+  const router = useRouter();
+
   const [showPassword, setShowPassword] = useState(false);
   const [agreedToTerms, setAgreedToTerms] = useState(false);
 
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+
+  const [errorMessage, setErrorMessage] = useState("");
+
+  function handleLogin(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setErrorMessage("");
+
+    // Temporary login muna for testing
+    if (email === "admin@gmail.com" && password === "admin12345") {
+      localStorage.setItem("easytalk_logged_in", "true");
+      router.push("/dashboard");
+      return;
+    }
+
+    setErrorMessage("Invalid email or password.");
+  }
+
   return (
-    <main className="h-screen overflow-hidden bg-[#f3f6fb] px-4 py-4 text-[#111827] lg:flex lg:items-center lg:justify-center">
+    <main
+      onDragStart={(event) => event.preventDefault()}
+      className="h-screen overflow-hidden bg-[#f3f6fb] px-4 py-4 text-[#111827] lg:flex lg:items-center lg:justify-center [&_*]:[-webkit-user-drag:none]"
+    >
       <div className="mx-auto flex h-[calc(100vh-32px)] w-full max-w-[1500px] overflow-hidden rounded-[34px] bg-white shadow-[0_22px_70px_rgba(15,23,42,0.16)]">
         <section className="relative hidden w-1/2 overflow-hidden bg-[#05292b] px-8 py-8 text-white lg:block xl:px-14">
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_16%_18%,rgba(32,217,155,0.24),transparent_24%),radial-gradient(circle_at_80%_0%,rgba(10,96,111,0.55),transparent_34%),linear-gradient(160deg,#063b34_0%,#031f2d_58%,#06352f_100%)]" />
@@ -109,22 +134,24 @@ export default function LoginPage() {
                 width={512}
                 height={512}
                 priority
-                className="absolute bottom-2 left-1/2 z-30 h-auto w-[290px] -translate-x-1/2 drop-shadow-[0_20px_32px_rgba(0,0,0,0.42)] xl:w-[330px]"
+                draggable={false}
+                onDragStart={(event) => event.preventDefault()}
+                className="pointer-events-none absolute bottom-2 left-1/2 z-30 h-auto w-[290px] -translate-x-1/2 select-none drop-shadow-[0_20px_32px_rgba(0,0,0,0.42)] xl:w-[330px]"
               />
             </div>
           </div>
         </section>
 
         <section className="relative flex w-full items-center justify-center px-6 py-5 lg:w-1/2 lg:px-12">
-  <Link
-    href="/"
-    className="absolute left-6 top-5 inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-bold text-slate-600 shadow-sm transition hover:border-emerald-300 hover:bg-emerald-50 hover:text-emerald-700 lg:left-12"
-  >
-    <ArrowLeft className="h-4 w-4" />
-    Back to Homepage
-  </Link>
+          <Link
+            href="/"
+            className="absolute left-6 top-5 inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-bold text-slate-600 shadow-sm transition hover:border-emerald-300 hover:bg-emerald-50 hover:text-emerald-700 lg:left-12"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            Back to Homepage
+          </Link>
 
-  <div className="w-full max-w-[560px]">
+          <div className="w-full max-w-[560px]">
             <div className="text-center">
               <h2 className="text-4xl font-extrabold tracking-normal text-[#111827]">
                 Login
@@ -135,7 +162,7 @@ export default function LoginPage() {
               </p>
             </div>
 
-            <form className="mt-5 space-y-3">
+            <form onSubmit={handleLogin} className="mt-5 space-y-3">
               <div>
                 <label
                   className="text-base font-bold text-slate-600"
@@ -151,6 +178,8 @@ export default function LoginPage() {
                     id="email"
                     name="email"
                     type="email"
+                    value={email}
+                    onChange={(event) => setEmail(event.target.value)}
                     className="ml-4 min-w-0 flex-1 bg-transparent text-base text-slate-800 outline-none placeholder:text-slate-400"
                     placeholder="Enter your email address"
                     required
@@ -173,6 +202,8 @@ export default function LoginPage() {
                     id="password"
                     name="password"
                     type={showPassword ? "text" : "password"}
+                    value={password}
+                    onChange={(event) => setPassword(event.target.value)}
                     className="ml-4 min-w-0 flex-1 bg-transparent text-base text-slate-800 outline-none placeholder:text-slate-400"
                     placeholder="Enter your password"
                     required
@@ -182,7 +213,9 @@ export default function LoginPage() {
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
                     className="ml-3 text-slate-500 transition hover:text-emerald-600"
-                    aria-label={showPassword ? "Hide password" : "Show password"}
+                    aria-label={
+                      showPassword ? "Hide password" : "Show password"
+                    }
                   >
                     {showPassword ? (
                       <EyeOff className="h-5 w-5" />
@@ -220,6 +253,12 @@ export default function LoginPage() {
                   .
                 </span>
               </label>
+
+              {errorMessage && (
+                <p className="rounded-xl border border-red-200 bg-red-50 px-4 py-2 text-sm font-semibold text-red-600">
+                  {errorMessage}
+                </p>
+              )}
 
               <button
                 type="submit"
