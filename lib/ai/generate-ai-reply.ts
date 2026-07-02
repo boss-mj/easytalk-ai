@@ -1,4 +1,4 @@
-import { getOpenAIClient } from "@/lib/openai/client";
+import { getOpenAIClient } from "@/lib/supabase/openai/client";
 import type { KnowledgeMatch } from "@/lib/knowledge/search-knowledge";
 
 type GenerateAIReplyParams = {

@@ -2,16 +2,20 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useState } from "react";
+import { FormEvent, useState } from "react";
+import { useRouter } from "next/navigation";
 import {
+  ArrowLeft,
   Eye,
   EyeOff,
   LockKeyhole,
+  Loader2,
   Mail,
   MessageCircle,
   MoreHorizontal,
   UserPlus,
 } from "lucide-react";
+import { createClient } from "@/lib/supabase/client";
 
 function GoogleMark() {
   return (
@@ -21,13 +25,146 @@ function GoogleMark() {
   );
 }
 
-export default function Signup() {
+function getFriendlySignupError(message: string) {
+  const normalized = message.toLowerCase();
+
+  if (normalized.includes("user already registered")) {
+    return "This email is already registered. Please login instead.";
+  }
+
+  if (normalized.includes("password should be at least")) {
+    return "Password is too short. Please use at least 8 characters.";
+  }
+
+  if (normalized.includes("invalid email")) {
+    return "Please enter a valid email address.";
+  }
+
+  if (normalized.includes("rate limit")) {
+    return "Too many signup attempts. Please wait a moment and try again.";
+  }
+
+  return message || "Signup failed. Please try again.";
+}
+
+export default function SignupPage() {
+  const router = useRouter();
+
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [agreedToTerms, setAgreedToTerms] = useState(false);
 
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+
+  const [isLoading, setIsLoading] = useState(false);
+  const [statusMessage, setStatusMessage] = useState("");
+  const [errorMessage, setErrorMessage] = useState("");
+
+  async function handleSignup(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    if (isLoading) return;
+
+    setStatusMessage("");
+    setErrorMessage("");
+
+    const cleanedEmail = email.trim().toLowerCase();
+
+    if (!cleanedEmail) {
+      setErrorMessage("Email address is required.");
+      return;
+    }
+
+    if (!password) {
+      setErrorMessage("Password is required.");
+      return;
+    }
+
+    if (password.length < 8) {
+      setErrorMessage("Password must be at least 8 characters.");
+      return;
+    }
+
+    if (password !== confirmPassword) {
+      setErrorMessage("Passwords do not match.");
+      return;
+    }
+
+    if (!agreedToTerms) {
+      setErrorMessage("Please agree to the Terms and Privacy Policy.");
+      return;
+    }
+
+    try {
+      setIsLoading(true);
+
+      const supabase = createClient();
+
+      /**
+       * Real Supabase signup.
+       *
+       * If email confirmation is enabled in Supabase:
+       * - user will receive confirmation email
+       * - data.session will be null
+       *
+       * If email confirmation is disabled:
+       * - Supabase may return a session immediately
+       * - we can redirect user to /setup
+       */
+      const { data, error } = await supabase.auth.signUp({
+        email: cleanedEmail,
+        password,
+        options: {
+          emailRedirectTo:
+            typeof window !== "undefined"
+              ? `${window.location.origin}/login`
+              : undefined,
+        },
+      });
+
+      if (error) {
+        throw new Error(getFriendlySignupError(error.message));
+      }
+
+      /**
+       * If session exists, the user is already logged in.
+       * Send them to setup because new users need to create a business.
+       */
+      if (data.session) {
+        router.replace("/setup");
+        router.refresh();
+        return;
+      }
+
+      /**
+       * If no session, email confirmation is likely enabled.
+       */
+      setStatusMessage(
+        "Account created. Please check your email to confirm your account, then login."
+      );
+
+      setEmail("");
+      setPassword("");
+      setConfirmPassword("");
+      setAgreedToTerms(false);
+    } catch (error) {
+      setErrorMessage(
+        error instanceof Error
+          ? error.message
+          : "Signup failed. Please try again."
+      );
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
   return (
-    <main className="h-screen overflow-hidden bg-[#f3f6fb] px-4 py-4 text-[#111827] lg:flex lg:items-center lg:justify-center">
+    <main
+      onDragStart={(event) => event.preventDefault()}
+      className="h-screen overflow-hidden bg-[#f3f6fb] px-4 py-4 text-[#111827] lg:flex lg:items-center lg:justify-center [&_*]:[-webkit-user-drag:none]"
+    >
       <div className="mx-auto flex h-[calc(100vh-32px)] w-full max-w-[1500px] overflow-hidden rounded-[34px] bg-white shadow-[0_22px_70px_rgba(15,23,42,0.16)]">
         <section className="relative hidden w-1/2 overflow-hidden bg-[#05292b] px-8 py-8 text-white lg:block xl:px-14">
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_16%_18%,rgba(32,217,155,0.24),transparent_24%),radial-gradient(circle_at_80%_0%,rgba(10,96,111,0.55),transparent_34%),linear-gradient(160deg,#063b34_0%,#031f2d_58%,#06352f_100%)]" />
@@ -117,13 +254,23 @@ export default function Signup() {
                 width={512}
                 height={512}
                 priority
-                className="absolute bottom-2 left-1/2 z-30 h-auto w-[270px] -translate-x-1/2 drop-shadow-[0_20px_32px_rgba(0,0,0,0.42)] xl:w-[310px]"
+                draggable={false}
+                onDragStart={(event) => event.preventDefault()}
+                className="pointer-events-none absolute bottom-2 left-1/2 z-30 h-auto w-[270px] -translate-x-1/2 select-none drop-shadow-[0_20px_32px_rgba(0,0,0,0.42)] xl:w-[310px]"
               />
             </div>
           </div>
         </section>
 
-        <section className="flex w-full items-center justify-center px-6 py-5 lg:w-1/2 lg:px-12">
+        <section className="relative flex w-full items-center justify-center px-6 py-5 lg:w-1/2 lg:px-12">
+          <Link
+            href="/"
+            className="absolute left-6 top-5 inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-bold text-slate-600 shadow-sm transition hover:border-emerald-300 hover:bg-emerald-50 hover:text-emerald-700 lg:left-12"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            Back to Homepage
+          </Link>
+
           <div className="w-full max-w-[560px]">
             <div className="text-center">
               <h2 className="text-4xl font-extrabold tracking-normal text-[#111827]">
@@ -135,7 +282,7 @@ export default function Signup() {
               </p>
             </div>
 
-            <form className="mt-5 space-y-3">
+            <form onSubmit={handleSignup} className="mt-5 space-y-3">
               <div>
                 <label
                   className="text-base font-bold text-slate-600"
@@ -151,7 +298,11 @@ export default function Signup() {
                     id="email"
                     name="email"
                     type="email"
-                    className="ml-4 min-w-0 flex-1 bg-transparent text-base text-slate-800 outline-none placeholder:text-slate-400"
+                    autoComplete="email"
+                    value={email}
+                    onChange={(event) => setEmail(event.target.value)}
+                    disabled={isLoading}
+                    className="ml-4 min-w-0 flex-1 bg-transparent text-base text-slate-800 outline-none placeholder:text-slate-400 disabled:cursor-not-allowed disabled:opacity-70"
                     placeholder="Enter your email address"
                     required
                   />
@@ -173,16 +324,23 @@ export default function Signup() {
                     id="password"
                     name="password"
                     type={showPassword ? "text" : "password"}
-                    className="ml-4 min-w-0 flex-1 bg-transparent text-base text-slate-800 outline-none placeholder:text-slate-400"
+                    autoComplete="new-password"
+                    value={password}
+                    onChange={(event) => setPassword(event.target.value)}
+                    disabled={isLoading}
+                    className="ml-4 min-w-0 flex-1 bg-transparent text-base text-slate-800 outline-none placeholder:text-slate-400 disabled:cursor-not-allowed disabled:opacity-70"
                     placeholder="Enter your password"
                     required
                   />
 
                   <button
                     type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="ml-3 text-slate-500 transition hover:text-emerald-600"
-                    aria-label={showPassword ? "Hide password" : "Show password"}
+                    onClick={() => setShowPassword((current) => !current)}
+                    disabled={isLoading}
+                    className="ml-3 text-slate-500 transition hover:text-emerald-600 disabled:cursor-not-allowed disabled:opacity-60"
+                    aria-label={
+                      showPassword ? "Hide password" : "Show password"
+                    }
                   >
                     {showPassword ? (
                       <EyeOff className="h-5 w-5" />
@@ -208,15 +366,22 @@ export default function Signup() {
                     id="confirm-password"
                     name="confirmPassword"
                     type={showConfirmPassword ? "text" : "password"}
-                    className="ml-4 min-w-0 flex-1 bg-transparent text-base text-slate-800 outline-none placeholder:text-slate-400"
+                    autoComplete="new-password"
+                    value={confirmPassword}
+                    onChange={(event) => setConfirmPassword(event.target.value)}
+                    disabled={isLoading}
+                    className="ml-4 min-w-0 flex-1 bg-transparent text-base text-slate-800 outline-none placeholder:text-slate-400 disabled:cursor-not-allowed disabled:opacity-70"
                     placeholder="Confirm your password"
                     required
                   />
 
                   <button
                     type="button"
-                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                    className="ml-3 text-slate-500 transition hover:text-emerald-600"
+                    onClick={() =>
+                      setShowConfirmPassword((current) => !current)
+                    }
+                    disabled={isLoading}
+                    className="ml-3 text-slate-500 transition hover:text-emerald-600 disabled:cursor-not-allowed disabled:opacity-60"
                     aria-label={
                       showConfirmPassword
                         ? "Hide confirm password"
@@ -237,8 +402,9 @@ export default function Signup() {
                   type="checkbox"
                   checked={agreedToTerms}
                   onChange={(event) => setAgreedToTerms(event.target.checked)}
+                  disabled={isLoading}
                   required
-                  className="mt-1 h-4 w-4 rounded border-slate-300 accent-emerald-600"
+                  className="mt-1 h-4 w-4 rounded border-slate-300 accent-emerald-600 disabled:cursor-not-allowed"
                 />
 
                 <span>
@@ -260,13 +426,40 @@ export default function Signup() {
                 </span>
               </label>
 
+              {statusMessage ? (
+                <p
+                  role="status"
+                  className="rounded-xl border border-green-200 bg-green-50 px-4 py-2 text-sm font-semibold text-green-700"
+                >
+                  {statusMessage}
+                </p>
+              ) : null}
+
+              {errorMessage ? (
+                <p
+                  role="alert"
+                  className="rounded-xl border border-red-200 bg-red-50 px-4 py-2 text-sm font-semibold text-red-600"
+                >
+                  {errorMessage}
+                </p>
+              ) : null}
+
               <button
                 type="submit"
-                disabled={!agreedToTerms}
+                disabled={!agreedToTerms || isLoading}
                 className="flex h-14 w-full items-center justify-center gap-3 rounded-full bg-gradient-to-r from-[#10d985] to-[#04936d] text-lg font-extrabold text-white shadow-[0_16px_30px_rgba(16,185,129,0.28)] transition hover:-translate-y-0.5 hover:shadow-[0_20px_36px_rgba(16,185,129,0.34)] focus:outline-none focus:ring-4 focus:ring-emerald-200 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:translate-y-0 disabled:hover:shadow-[0_16px_30px_rgba(16,185,129,0.28)]"
               >
-                <UserPlus className="h-6 w-6" />
-                Create Account
+                {isLoading ? (
+                  <>
+                    <Loader2 className="h-6 w-6 animate-spin" />
+                    Creating account...
+                  </>
+                ) : (
+                  <>
+                    <UserPlus className="h-6 w-6" />
+                    Create Account
+                  </>
+                )}
               </button>
             </form>
 
@@ -276,14 +469,22 @@ export default function Signup() {
               <span className="h-px flex-1 bg-slate-200" />
             </div>
 
-            <button className="flex h-14 w-full items-center justify-center gap-4 rounded-xl border border-slate-200 bg-white px-4 text-base font-bold text-slate-800 shadow-sm transition hover:border-slate-300 hover:bg-slate-50">
+            <button
+              type="button"
+              disabled
+              className="flex h-14 w-full cursor-not-allowed items-center justify-center gap-4 rounded-xl border border-slate-200 bg-slate-50 px-4 text-base font-bold text-slate-400 shadow-sm"
+              title="Google signup is not enabled yet."
+            >
               <GoogleMark />
               Continue with Google
             </button>
 
             <p className="mx-auto mt-3 max-w-[560px] text-center text-sm leading-6 text-slate-500">
               Already have an account?{" "}
-              <Link className="font-semibold text-emerald-600" href="/login">
+              <Link
+                className="font-semibold text-emerald-600 hover:text-emerald-700"
+                href="/login"
+              >
                 Sign in
               </Link>
             </p>

@@ -3,20 +3,59 @@
 import Image from "next/image";
 import Link from "next/link";
 import { FormEvent, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   ArrowLeft,
   Eye,
   EyeOff,
   LockKeyhole,
+  Loader2,
   LogIn,
   Mail,
   MessageCircle,
   MoreHorizontal,
 } from "lucide-react";
+import { createClient } from "@/lib/supabase/client";
+
+function getSafeRedirectPath(value: string | null) {
+  /**
+   * Only allow internal redirects.
+   *
+   * This prevents unsafe redirects like:
+   * ?redirect=https://bad-site.com
+   */
+  if (!value) return "/dashboard";
+
+  if (!value.startsWith("/")) return "/dashboard";
+
+  if (value.startsWith("//")) return "/dashboard";
+
+  return value;
+}
+
+function getFriendlyAuthError(message: string) {
+  const normalized = message.toLowerCase();
+
+  if (normalized.includes("invalid login credentials")) {
+    return "Invalid email or password.";
+  }
+
+  if (normalized.includes("email not confirmed")) {
+    return "Please confirm your email before logging in.";
+  }
+
+  if (normalized.includes("rate limit")) {
+    return "Too many login attempts. Please wait a moment and try again.";
+  }
+
+  return message || "Login failed. Please try again.";
+}
 
 export default function LoginPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+
+  const redirectTo = getSafeRedirectPath(searchParams.get("redirect"));
 
   const [showPassword, setShowPassword] = useState(false);
   const [agreedToTerms, setAgreedToTerms] = useState(false);
@@ -24,20 +63,70 @@ export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
+  const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
 
-  function handleLogin(event: FormEvent<HTMLFormElement>) {
+  async function handleLogin(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+
+    if (isLoading) return;
+
     setErrorMessage("");
 
-    // Temporary login muna for testing
-    if (email === "admin@gmail.com" && password === "admin12345") {
-      localStorage.setItem("easytalk_logged_in", "true");
-      router.push("/dashboard");
+    const cleanedEmail = email.trim().toLowerCase();
+
+    if (!cleanedEmail) {
+      setErrorMessage("Email address is required.");
       return;
     }
 
-    setErrorMessage("Invalid email or password.");
+    if (!password) {
+      setErrorMessage("Password is required.");
+      return;
+    }
+
+    if (!agreedToTerms) {
+      setErrorMessage("Please agree to the Terms and Privacy Policy.");
+      return;
+    }
+
+    try {
+      setIsLoading(true);
+
+      const supabase = createClient();
+
+      /**
+       * Real production login.
+       *
+       * This creates Supabase auth cookies through @supabase/ssr.
+       * Your server dashboard layout can then check:
+       * await supabase.auth.getUser()
+       */
+      const { error } = await supabase.auth.signInWithPassword({
+        email: cleanedEmail,
+        password,
+      });
+
+      if (error) {
+        throw new Error(getFriendlyAuthError(error.message));
+      }
+
+      /**
+       * After login, go to dashboard.
+       *
+       * app/dashboard/layout.tsx will decide:
+       * - no business yet -> /setup
+       * - has business -> /dashboard
+       */
+      router.replace(redirectTo);
+      router.refresh();
+    } catch (error) {
+      setErrorMessage(
+        error instanceof Error ? error.message : "Login failed. Please try again."
+      );
+    } finally {
+      setIsLoading(false);
+    }
   }
 
   return (
@@ -178,9 +267,11 @@ export default function LoginPage() {
                     id="email"
                     name="email"
                     type="email"
+                    autoComplete="email"
                     value={email}
                     onChange={(event) => setEmail(event.target.value)}
-                    className="ml-4 min-w-0 flex-1 bg-transparent text-base text-slate-800 outline-none placeholder:text-slate-400"
+                    disabled={isLoading}
+                    className="ml-4 min-w-0 flex-1 bg-transparent text-base text-slate-800 outline-none placeholder:text-slate-400 disabled:cursor-not-allowed disabled:opacity-70"
                     placeholder="Enter your email address"
                     required
                   />
@@ -202,17 +293,20 @@ export default function LoginPage() {
                     id="password"
                     name="password"
                     type={showPassword ? "text" : "password"}
+                    autoComplete="current-password"
                     value={password}
                     onChange={(event) => setPassword(event.target.value)}
-                    className="ml-4 min-w-0 flex-1 bg-transparent text-base text-slate-800 outline-none placeholder:text-slate-400"
+                    disabled={isLoading}
+                    className="ml-4 min-w-0 flex-1 bg-transparent text-base text-slate-800 outline-none placeholder:text-slate-400 disabled:cursor-not-allowed disabled:opacity-70"
                     placeholder="Enter your password"
                     required
                   />
 
                   <button
                     type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="ml-3 text-slate-500 transition hover:text-emerald-600"
+                    onClick={() => setShowPassword((current) => !current)}
+                    disabled={isLoading}
+                    className="ml-3 text-slate-500 transition hover:text-emerald-600 disabled:cursor-not-allowed disabled:opacity-60"
                     aria-label={
                       showPassword ? "Hide password" : "Show password"
                     }
@@ -231,8 +325,9 @@ export default function LoginPage() {
                   type="checkbox"
                   checked={agreedToTerms}
                   onChange={(event) => setAgreedToTerms(event.target.checked)}
+                  disabled={isLoading}
                   required
-                  className="mt-1 h-4 w-4 rounded border-slate-300 accent-emerald-600"
+                  className="mt-1 h-4 w-4 rounded border-slate-300 accent-emerald-600 disabled:cursor-not-allowed"
                 />
 
                 <span>
@@ -254,19 +349,31 @@ export default function LoginPage() {
                 </span>
               </label>
 
-              {errorMessage && (
-                <p className="rounded-xl border border-red-200 bg-red-50 px-4 py-2 text-sm font-semibold text-red-600">
+              {errorMessage ? (
+                <p
+                  role="alert"
+                  className="rounded-xl border border-red-200 bg-red-50 px-4 py-2 text-sm font-semibold text-red-600"
+                >
                   {errorMessage}
                 </p>
-              )}
+              ) : null}
 
               <button
                 type="submit"
-                disabled={!agreedToTerms}
+                disabled={!agreedToTerms || isLoading}
                 className="flex h-14 w-full items-center justify-center gap-3 rounded-full bg-gradient-to-r from-[#10d985] to-[#04936d] text-lg font-extrabold text-white shadow-[0_16px_30px_rgba(16,185,129,0.28)] transition hover:-translate-y-0.5 hover:shadow-[0_20px_36px_rgba(16,185,129,0.34)] focus:outline-none focus:ring-4 focus:ring-emerald-200 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:translate-y-0 disabled:hover:shadow-[0_16px_30px_rgba(16,185,129,0.28)]"
               >
-                <LogIn className="h-6 w-6" />
-                Confirm Login
+                {isLoading ? (
+                  <>
+                    <Loader2 className="h-6 w-6 animate-spin" />
+                    Signing in...
+                  </>
+                ) : (
+                  <>
+                    <LogIn className="h-6 w-6" />
+                    Confirm Login
+                  </>
+                )}
               </button>
             </form>
 
